@@ -7,24 +7,25 @@
 
 #include "src/gpu/graphite/dawn/DawnQueueManager.h"
 
+#include "include/gpu/graphite/dawn/DawnBackendContext.h"
 #include "src/gpu/graphite/dawn/DawnCommandBuffer.h"
 #include "src/gpu/graphite/dawn/DawnResourceProvider.h"
 #include "src/gpu/graphite/dawn/DawnSharedContext.h"
 
+
 namespace skgpu::graphite {
 
-DawnQueueManager::DawnQueueManager(wgpu::Queue queue,
-                                 const SharedContext* sharedContext)
+DawnQueueManager::DawnQueueManager(const DawnBackendContext& backendContext,
+                                   const SharedContext* sharedContext)
         : QueueManager(sharedContext)
-        , fQueue(std::move(queue))
-{
-}
+        , fQueue(backendContext.fQueue) {}
 
 const DawnSharedContext* DawnQueueManager::dawnSharedContext() const {
     return static_cast<const DawnSharedContext*>(fSharedContext);
 }
 
 std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(ResourceProvider* resourceProvider) {
+    SkASSERT(false);
     return nullptr;
 }
 
@@ -53,6 +54,7 @@ QueueManager::OutstandingSubmission DawnQueueManager::onSubmitToGpu() {
     // std::unique_ptr<GpuWorkSubmission> submission(
     //         new WorkSubmission(std::move(fCurrentCommandBuffer)));
     // return submission;
+    SkASSERT(false);
     return nullptr;
 }
 

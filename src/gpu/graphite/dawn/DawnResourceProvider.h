@@ -10,7 +10,11 @@
 
 #include "src/gpu/graphite/ResourceProvider.h"
 
+#include "webgpu/webgpu_cpp.h"
+
 namespace skgpu::graphite {
+
+class DawnSharedContext;
 
 class DawnResourceProvider final : public ResourceProvider {
 public:
@@ -33,7 +37,9 @@ private:
                                  SkTileMode yTileMode) override;
 
     BackendTexture onCreateBackendTexture(SkISize dimensions, const TextureInfo&) override;
-    void onDeleteBackendTexture(BackendTexture&) override {}
+    void onDeleteBackendTexture(BackendTexture&) override;
+
+    const DawnSharedContext* dawnSharedContext() const;
 };
 
 } // namespace skgpu::graphite

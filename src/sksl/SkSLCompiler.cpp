@@ -625,6 +625,15 @@ bool Compiler::toWGSL(Program& program, OutputStream& out) {
     return result;
 }
 
+bool Compiler::toWGSL(Program& program, std::string* out) {
+    StringStream buffer;
+    bool result = this->toWGSL(program, buffer);
+    if (result) {
+        *out = buffer.str();
+    }
+    return result;
+}
+
 #endif // defined(SKSL_STANDALONE) || SK_SUPPORT_GPU || defined(SK_GRAPHITE_ENABLED)
 
 void Compiler::handleError(std::string_view msg, Position pos) {

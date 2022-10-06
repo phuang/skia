@@ -151,14 +151,17 @@ bool validate_backend_texture(const Caps* caps,
     if (!texture.isValid() ||
         texture.dimensions().width() <= 0 ||
         texture.dimensions().height() <= 0) {
+        SkASSERT(false);
         return false;
     }
 
     if (!SkColorInfoIsValid(info)) {
+        SkASSERT(false);
         return false;
     }
 
     if (!caps->isRenderable(texture.info())) {
+        SkASSERT(false);
         return false;
     }
 
@@ -194,11 +197,13 @@ sk_sp<SkSurface> SkSurface::MakeGraphiteFromBackendTexture(Recorder* recorder,
     SkColorInfo info(ct, kPremul_SkAlphaType, std::move(cs));
 
     if (!validate_backend_texture(caps, backendTex, info)) {
+        SkASSERT(false);
         return nullptr;
     }
 
     sk_sp<Texture> texture = recorder->priv().resourceProvider()->createWrappedTexture(backendTex);
     if (!texture) {
+        SkASSERT(false);
         return nullptr;
     }
 
