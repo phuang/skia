@@ -47,7 +47,8 @@ $pure half4 $sample_image(float2 pos,
                           int tileModeX,
                           int tileModeY,
                           int filterMode,
-                          sampler2D s) {
+                          sampler s,
+                          texture2D t) {
     // Do hard-edge shader transitions to the border color for nearest-neighbor decal tiling at the
     // subset boundaries. Snap the input coordinates to nearest neighbor before comparing to the
     // subset rect, to avoid GPU interpolation errors. See https://crbug.com/skia/10403.
@@ -76,7 +77,7 @@ $pure half4 $sample_image(float2 pos,
         insetClamp = float4(subset.xy + 0.5, subset.zw - 0.5);
     }
     float2 clampedPos = clamp(pos, insetClamp.xy, insetClamp.zw);
-    half4 color = sample(s, clampedPos / imgSize);
+    half4 color = sample(makeSampler2D(t, s), clampedPos / imgSize);
 
     if (filterMode == $kFilterModeLinear) {
         // Remember the amount the coord moved for clamping. This is used to implement shader-based
@@ -96,14 +97,14 @@ $pure half4 $sample_image(float2 pos,
             half4 extraColorY;
             if (sampleExtraX) {
                 extraCoordX = error.x > 0 ? insetClamp.x : insetClamp.z;
-                extraColorX = sample(s, float2(extraCoordX, clampedPos.y) / imgSize);
+                extraColorX = sample(makeSampler2D(t, s), float2(extraCoordX, clampedPos.y) / imgSize);
             }
             if (sampleExtraY) {
                 extraCoordY = error.y > 0 ? insetClamp.y : insetClamp.w;
-                extraColorY = sample(s, float2(clampedPos.x, extraCoordY) / imgSize);
+                extraColorY = sample(makeSampler2D(t, s), float2(clampedPos.x, extraCoordY) / imgSize);
             }
             if (sampleExtraX && sampleExtraY) {
-                half4 extraColorXY = sample(s, float2(extraCoordX, extraCoordY) / imgSize);
+                half4 extraColorXY = sample(makeSampler2D(t, s), float2(extraCoordX, extraCoordY) / imgSize);
                 color = mix(mix(color, extraColorX, absError.x),
                             mix(extraColorY, extraColorXY, absError.x),
                             absError.y);
@@ -133,7 +134,8 @@ $pure half4 $cubic_filter_image(float2 pos,
                                 int tileModeX,
                                 int tileModeY,
                                 float4x4 coeffs,
-                                sampler2D s) {
+                                sampler s,
+                                texture2D t) {
     // Determine pos's fractional offset f between texel centers.
     float2 f = fract(pos - 0.5);
     // Sample 16 points at 1-pixel intervals from [p - 1.5 ... p + 1.5].
@@ -148,7 +150,7 @@ $pure half4 $cubic_filter_image(float2 pos,
         float4 rowColor = float4(0);
         for (int x = 0; x < 4; ++x) {
             rowColor += wx[x] * $sample_image(pos + float2(x, y), imgSize, subset,
-                                              tileModeX, tileModeY, $kFilterModeNearest, s);
+                                              tileModeX, tileModeY, $kFilterModeNearest, s, t);
         }
         color += wy[y] * rowColor;
     }
@@ -163,10 +165,11 @@ $pure half4 sk_image_shader(float2 coords,
                             int filterMode,
                             int useCubic,
                             float4x4 cubicCoeffs,
-                            sampler2D s) {
+                            sampler s,
+                            texture2D t) {
     return (useCubic != 0)
-        ? $cubic_filter_image(coords, imgSize, subset, tileModeX, tileModeY, cubicCoeffs, s)
-        : $sample_image(coords, imgSize, subset, tileModeX, tileModeY, filterMode, s);
+        ? $cubic_filter_image(coords, imgSize, subset, tileModeX, tileModeY, cubicCoeffs, s, t)
+        : $sample_image(coords, imgSize, subset, tileModeX, tileModeY, filterMode, s, t);
 }
 
 $pure float2 $tile_grad(int tileMode, float2 t) {
@@ -616,13 +619,13 @@ $pure half4 sk_blend_colorfilter(half4 dstColor, int blendMode, float4 srcColor)
     return sk_blend(blendMode, half4(srcColor), dstColor);
 }
 
-$pure half4 sk_table_colorfilter(half4 inColor, sampler2D s) {
+$pure half4 sk_table_colorfilter(half4 inColor, sampler s, texture2D t) {
     half4 coords = unpremul(inColor) * 255.0/256.0 + 0.5/256.0;
-    half4 color = half4(sample(s, half2(coords.r, 3.0/8.0)).r,
-                        sample(s, half2(coords.g, 5.0/8.0)).r,
-                        sample(s, half2(coords.b, 7.0/8.0)).r,
+    half4 color = half4(sample(makeSampler2D(t, s), half2(coords.r, 3.0/8.0)).r,
+                        sample(makeSampler2D(t, s), half2(coords.g, 5.0/8.0)).r,
+                        sample(makeSampler2D(t, s), half2(coords.b, 7.0/8.0)).r,
                         1);
-    return color * sample(s, half2(coords.a, 1.0/8.0)).r;
+    return color * sample(makeSampler2D(t, s), half2(coords.a, 1.0/8.0)).r;
 }
 
 $pure half4 sk_gaussian_colorfilter(half4 inColor) {
