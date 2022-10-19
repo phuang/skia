@@ -195,7 +195,7 @@ SPIRVCodeGenerator::Intrinsic SPIRVCodeGenerator::getIntrinsic(IntrinsicKind ik)
         case k_inverse_IntrinsicKind:        return ALL_GLSL(MatrixInverse);
         case k_outerProduct_IntrinsicKind:   return ALL_SPIRV(OuterProduct);
         case k_transpose_IntrinsicKind:      return ALL_SPIRV(Transpose);
-        case k_isinf_IntrinsicKind:          return ALL_SPIRV(IsInf);
+        case k_isinf_IntrinsicKind:          return SPECIAL(IsInf);
         case k_isnan_IntrinsicKind:          return ALL_SPIRV(IsNan);
         case k_inversesqrt_IntrinsicKind:    return ALL_GLSL(InverseSqrt);
         case k_determinant_IntrinsicKind:    return ALL_GLSL(Determinant);
@@ -1599,6 +1599,28 @@ SpvId SPIRVCodeGenerator::writeSpecialIntrinsic(const FunctionCall& c, SpecialIn
             SpvId lhs = this->writeExpression(*arguments[0], out);
             SpvId rhs = this->writeExpression(*arguments[1], out);
             result = this->writeComponentwiseMatrixBinary(callType, lhs, rhs, SpvOpFMul, out);
+            break;
+        }
+        case kIsInf_SpecialIntrinsic: {
+            SkASSERT(arguments.size() == 1);
+            SkASSERT(arguments[0]->type().componentType().matches(*fContext.fTypes.fFloat) ||
+                     arguments[0]->type().componentType().matches(*fContext.fTypes.fHalf));
+
+            if (!fProgram.fConfig->fSettings.fInfinitySupport) {
+                SpvId zeroLiteral = this->writeLiteral(0.0, *fContext.fTypes.fBool);
+                if (callType.isVector()) {
+                    SkTArray<SpvId> values(callType.columns());
+                    for (int i = 0; i < callType.columns(); i++) {
+                        values.push_back(zeroLiteral);
+                    }
+                    return this->writeOpConstantComposite(callType, values);
+                }
+                return zeroLiteral;
+            }
+
+            SpvId argId = this->writeExpression(*arguments[0], out);
+            SpvId type = this->getType(callType);
+            this->writeInstruction(SpvOpIsInf, type, result, argId, out);
             break;
         }
     }

@@ -83,6 +83,10 @@ struct ProgramSettings {
     // If true, VarDeclaration can be cloned for testing purposes. See VarDeclaration::clone for
     // more information.
     bool fAllowVarDeclarationCloneForTesting = false;
+
+    // TODO: this shouldn't live here?
+    bool fInfinitySupport = false;
+
     // External functions available for use in runtime effects. These values are registered in the
     // symbol table of the Program, but ownership is *not* transferred. It is up to the caller to
     // keep them alive.

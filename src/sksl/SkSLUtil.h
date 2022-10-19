@@ -86,6 +86,8 @@ struct ShaderCaps {
     bool fExplicitTextureLodSupport = false;
     /** Indicates true 32-bit integer support, with unsigned types and bitwise operations */
     bool fIntegerSupport = false;
+    // isinf() is defined, and floating point infinities are handled according to IEEE standards.
+    bool fInfinitySupport = false;
     bool fNonsquareMatrixSupport = false;
     /** asinh(), acosh(), atanh() */
     bool fInverseHyperbolicSupport = false;

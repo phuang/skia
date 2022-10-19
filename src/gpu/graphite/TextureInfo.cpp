@@ -62,7 +62,7 @@ bool TextureInfo::operator==(const TextureInfo& that) const {
     }
 
     switch (fBackend) {
-#ifdef SK_METAL
+#ifdef SK_DAWN
         case BackendApi::kDawn:
             return fDawnSpec == that.fDawnSpec;
 #endif
