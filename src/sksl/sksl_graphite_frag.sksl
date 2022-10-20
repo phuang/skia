@@ -22,14 +22,14 @@ $pure half4 sk_solid_shader(float4 colorParam) {
 
 $pure float $tile(int tileMode, float f, float low, float high) {
     switch (tileMode) {
-        case $kTileModeClamp:
+        case 0://$kTileModeClamp:
             return clamp(f, low, high);
 
-        case $kTileModeRepeat: {
+        case 1/*$kTileModeRepeat*/: {
             float length = high - low;
             return (mod(f - low, length) + low);
         }
-        case $kTileModeMirror: {
+        case 2/*$kTileModeMirror*/: {
             float length = high - low;
             float length2 = 2 * length;
             float tmp = mod(f - low, length2);
@@ -41,7 +41,7 @@ $pure float $tile(int tileMode, float f, float low, float high) {
     }
 }
 
-$pure half4 $sample_image(float2 pos,
+$pure half4 $sample_image(float2 inPos,
                           float2 imgSize,
                           float4 subset,
                           int tileModeX,
@@ -49,62 +49,85 @@ $pure half4 $sample_image(float2 pos,
                           int filterMode,
                           sampler s,
                           texture2D t) {
+    float2 pos;
+    pos.x = $tile(tileModeX, inPos.x, subset.x, subset.z);
+    pos.y = $tile(tileModeY, inPos.y, subset.y, subset.w);
+
+    // Clamp to an inset subset to prevent sampling neighboring texels when coords fall exactly at
+    // texel boundaries.
+    float4 insetClampNearest = float4(floor(subset.xy) + 0.5, ceil(subset.zw) - 0.5);
+    float2 clampedPosNearest = clamp(pos, insetClampNearest.xy, insetClampNearest.zw) / imgSize;
+    float2 clampedPosNearestDx = dFdx(clampedPosNearest);
+    float2 clampedPosNearestDy = dFdy(clampedPosNearest);
+
+    float4 insetClamp = float4(subset.xy + 0.5, subset.zw - 0.5);
+    float2 clampedPos = clamp(pos, insetClamp.xy, insetClamp.zw) / imgSize;
+    float2 clampedPosDx = dFdx(clampedPos);
+    float2 clampedPosDy = dFdy(clampedPos);
+
+    // Remember the amount the coord moved for clamping. This is used to implement shader-based
+    // filtering for repeat and decal tiling.
+    half2 error = half2(pos - clampedPos);
+    half2 absError = abs(error);
+
+    // Do 1 or 3 more texture reads depending on whether both x and y tiling modes are repeat
+    // and whether we're near a single subset edge or a corner. Then blend the multiple reads
+    // using the error values calculated above.
+    bool sampleExtraX = tileModeX == 1;//$kTileModeRepeat;
+    bool sampleExtraY = tileModeY == 1;//$kTileModeRepeat;
+    float extraCoordX = error.x > 0 ? insetClamp.x : insetClamp.z;
+    float extraCoordY = error.y > 0 ? insetClamp.y : insetClamp.w;
+    float2 sampleExtraXCoords = float2(extraCoordX, clampedPos.y) / imgSize;
+    float2 sampleExtraYCoords = float2(clampedPos.x, extraCoordY) / imgSize;
+    float2 sampleExtraXYCoords = float2(extraCoordX, extraCoordY) / imgSize;
+
+    float2 sampleExtraXCoordsDx = dFdx(sampleExtraXCoords);
+    float2 sampleExtraXCoordsDy = dFdy(sampleExtraXCoords);
+    float2 sampleExtraYCoordsDx = dFdx(sampleExtraYCoords);
+    float2 sampleExtraYCoordsDy = dFdy(sampleExtraYCoords);
+    float2 sampleExtraXYCoordsDx = dFdx(sampleExtraXYCoords);
+    float2 sampleExtraXYCoordsDy = dFdy(sampleExtraXYCoords);
+
     // Do hard-edge shader transitions to the border color for nearest-neighbor decal tiling at the
     // subset boundaries. Snap the input coordinates to nearest neighbor before comparing to the
     // subset rect, to avoid GPU interpolation errors. See https://crbug.com/skia/10403.
-    if (tileModeX == $kTileModeDecal && filterMode == $kFilterModeNearest) {
-        float snappedX = floor(pos.x) + 0.5;
+    if (tileModeX == 3/*$kTileModeDecal*/ && filterMode == 0/*$kFilterModeNearest*/) {
+        float snappedX = floor(inPos.x) + 0.5;
         if (snappedX < subset.x || snappedX > subset.z) {
             return half4(0);
         }
     }
-    if (tileModeY == $kTileModeDecal && filterMode == $kFilterModeNearest) {
-        float snappedY = floor(pos.y) + 0.5;
+    if (tileModeY == 3/*$kTileModeDecal*/ && filterMode == 0/*$kFilterModeNearest*/) {
+        float snappedY = floor(inPos.y) + 0.5;
         if (snappedY < subset.y || snappedY > subset.w) {
             return half4(0);
         }
     }
 
-    pos.x = $tile(tileModeX, pos.x, subset.x, subset.z);
-    pos.y = $tile(tileModeY, pos.y, subset.y, subset.w);
-
-    // Clamp to an inset subset to prevent sampling neighboring texels when coords fall exactly at
-    // texel boundaries.
-    float4 insetClamp;
-    if (filterMode == $kFilterModeNearest) {
-        insetClamp = float4(floor(subset.xy) + 0.5, ceil(subset.zw) - 0.5);
+    half4 color;
+    if (filterMode == 0/*$kFilterModeNearest*/) {
+        color = sampleGrad(makeSampler2D(t, s), clampedPosNearest,
+                           clampedPosNearestDx, clampedPosNearestDy);
     } else {
-        insetClamp = float4(subset.xy + 0.5, subset.zw - 0.5);
+        color = sampleGrad(makeSampler2D(t, s), clampedPos,
+                           clampedPosDx, clampedPosDy);
     }
-    float2 clampedPos = clamp(pos, insetClamp.xy, insetClamp.zw);
-    half4 color = sample(makeSampler2D(t, s), clampedPos / imgSize);
 
-    if (filterMode == $kFilterModeLinear) {
-        // Remember the amount the coord moved for clamping. This is used to implement shader-based
-        // filtering for repeat and decal tiling.
-        half2 error = half2(pos - clampedPos);
-        half2 absError = abs(error);
-
-        // Do 1 or 3 more texture reads depending on whether both x and y tiling modes are repeat
-        // and whether we're near a single subset edge or a corner. Then blend the multiple reads
-        // using the error values calculated above.
-        bool sampleExtraX = tileModeX == $kTileModeRepeat;
-        bool sampleExtraY = tileModeY == $kTileModeRepeat;
+    if (filterMode == 1/*$kFilterModeLinear*/) {
         if (sampleExtraX || sampleExtraY) {
-            float extraCoordX;
-            float extraCoordY;
             half4 extraColorX;
             half4 extraColorY;
             if (sampleExtraX) {
-                extraCoordX = error.x > 0 ? insetClamp.x : insetClamp.z;
-                extraColorX = sample(makeSampler2D(t, s), float2(extraCoordX, clampedPos.y) / imgSize);
+                extraColorX = sampleGrad(makeSampler2D(t, s), sampleExtraXCoords,
+                                         sampleExtraXCoordsDx, sampleExtraYCoordsDy);
             }
             if (sampleExtraY) {
-                extraCoordY = error.y > 0 ? insetClamp.y : insetClamp.w;
-                extraColorY = sample(makeSampler2D(t, s), float2(clampedPos.x, extraCoordY) / imgSize);
+                extraColorY = sampleGrad(makeSampler2D(t, s), sampleExtraYCoords,
+                                         sampleExtraYCoordsDx, sampleExtraYCoordsDy);
             }
             if (sampleExtraX && sampleExtraY) {
-                half4 extraColorXY = sample(makeSampler2D(t, s), float2(extraCoordX, extraCoordY) / imgSize);
+                half4 extraColorXY = sampleGrad(makeSampler2D(t, s), sampleExtraXYCoords,
+                                                sampleExtraXYCoordsDx, sampleExtraXYCoordsDy);
                 color = mix(mix(color, extraColorX, absError.x),
                             mix(extraColorY, extraColorXY, absError.x),
                             absError.y);
@@ -117,10 +140,10 @@ $pure half4 $sample_image(float2 pos,
 
         // Do soft edge shader filtering for decal tiling and linear filtering using the error
         // values calculated above.
-        if (tileModeX == $kTileModeDecal) {
+        if (tileModeX == 3/*$kTileModeDecal*/) {
             color *= max(1 - absError.x, 0);
         }
-        if (tileModeY == $kTileModeDecal) {
+        if (tileModeY == 3/*$kTileModeDecal*/) {
             color *= max(1 - absError.y, 0);
         }
     }
@@ -149,8 +172,20 @@ $pure half4 $cubic_filter_image(float2 pos,
     for (int y = 0; y < 4; ++y) {
         float4 rowColor = float4(0);
         for (int x = 0; x < 4; ++x) {
-            rowColor += wx[x] * $sample_image(pos + float2(x, y), imgSize, subset,
-                                              tileModeX, tileModeY, $kFilterModeNearest, s, t);
+            // rowColor += wx[x] * sample(makeSampler2D(t, s), pos + float2(x, y));  // but this
+                                                                                     // works?
+            rowColor += wx[x] * $sample_image(float2(1), // pos + float2(x, y) results in
+                                                         // non-uniform control flow because it
+                                                         // depends on sk_FragCoord. SPIR-V it
+                                                         // thinks it's a private variable. Why is that
+                                                         // a problem? Are varyings not OK? Is `pos`
+                                                         // not a varying?
+                                                         //
+                                                         // If I call sample() directly with pos
+                                                         // then uniformity analysis is happy. Is
+                                                         // this a bug?
+                                              imgSize, subset,
+                                              tileModeX, tileModeY, 0/*$kFilterModeNearest*/, s, t);
         }
         color += wy[y] * rowColor;
     }
@@ -167,22 +202,23 @@ $pure half4 sk_image_shader(float2 coords,
                             float4x4 cubicCoeffs,
                             sampler s,
                             texture2D t) {
-    return (useCubic != 0)
-        ? $cubic_filter_image(coords, imgSize, subset, tileModeX, tileModeY, cubicCoeffs, s, t)
-        : $sample_image(coords, imgSize, subset, tileModeX, tileModeY, filterMode, s, t);
+    // TODO: this feels bad
+    half4 cubicColor = $cubic_filter_image(coords, imgSize, subset, tileModeX, tileModeY, cubicCoeffs, s, t);
+    half4 sampleColor = $sample_image(coords, imgSize, subset, tileModeX, tileModeY, filterMode, s, t);
+    return (useCubic != 0) ? cubicColor : sampleColor;
 }
 
 $pure float2 $tile_grad(int tileMode, float2 t) {
     switch (tileMode) {
-        case $kTileModeClamp:
+        case 0://$kTileModeClamp:
             t.x = clamp(t.x, 0, 1);
             break;
 
-        case $kTileModeRepeat:
+        case 1://$kTileModeRepeat:
             t.x = fract(t.x);
             break;
 
-        case $kTileModeMirror: {
+        case 2/*$kTileModeMirror*/: {
             float t_1 = t.x - 1;
             t.x = t_1 - 2 * floor(t_1 * 0.5) - 1;
             if (sk_Caps.mustDoOpBetweenFloorAndAbs) {
@@ -195,7 +231,7 @@ $pure float2 $tile_grad(int tileMode, float2 t) {
             break;
         }
 
-        case $kTileModeDecal:
+        case 3://$kTileModeDecal:
             if (t.x < 0 || t.x > 1) {
                 return float2(0, -1);
             }
