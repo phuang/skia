@@ -32,12 +32,12 @@ struct RenderPassDesc;
 
 class DawnGraphicsPipeline final : public GraphicsPipeline {
 public:
-    // inline static constexpr unsigned int kIntrinsicUniformBufferIndex = 0;
-    // inline static constexpr unsigned int kRenderStepUniformBufferIndex = 1;
-    // inline static constexpr unsigned int kPaintUniformBufferIndex = 2;
-    inline static constexpr unsigned int kVertexBufferIndex = 0;
-    inline static constexpr unsigned int kInstanceBufferIndex = 1;
-    inline static constexpr unsigned int kNumberBuffer = 2;
+    inline static constexpr unsigned int kIntrinsicUniformBufferIndex = 0;
+    inline static constexpr unsigned int kRenderStepUniformBufferIndex = 1;
+    inline static constexpr unsigned int kPaintUniformBufferIndex = 2;
+    inline static constexpr unsigned int kVertexBufferIndex = 3;
+    inline static constexpr unsigned int kInstanceBufferIndex = 4;
+    inline static constexpr unsigned int kNumberBuffer = 5;
 
     using SPIRVFunction = std::pair<wgpu::ShaderModule, std::string>;
     static sk_sp<DawnGraphicsPipeline> Make(const DawnSharedContext*,
@@ -46,26 +46,19 @@ public:
                                            SkSpan<const Attribute> vertexAttrs,
                                            SkSpan<const Attribute> instanceAttrs,
                                            SPIRVFunction fragmentMain,
-                                        //    sk_cfp<id<MTLDepthStencilState>>,
                                            const DepthStencilSettings& depthStencilSettings,
                                            const BlendInfo& blendInfo,
                                            const RenderPassDesc&);
 
     ~DawnGraphicsPipeline() override {}
 
-    // id<MTLRenderPipelineState> mtlPipelineState() const { return fPipelineState.get(); }
-    // id<MTLDepthStencilState> mtlDepthStencilState() const { return fDepthStencilState.get(); }
     uint32_t stencilReferenceValue() const { return fStencilReferenceValue; }
 
 private:
     DawnGraphicsPipeline(const skgpu::graphite::SharedContext* sharedContext,
-                        //  sk_cfp<id<MTLRenderPipelineState>> pso,
-                        //  sk_cfp<id<MTLDepthStencilState>> dss,
                          wgpu::RenderPipeline renderPipeline,
                          uint32_t refValue)
         : GraphicsPipeline(sharedContext)
-        // , fPipelineState(std::move(pso))
-        // , fDepthStencilState(dss)
         , fRenderPipeline(std::move(renderPipeline))
         , fStencilReferenceValue(refValue) {}
 

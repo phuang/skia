@@ -250,7 +250,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
 
     // Depth stencil state
     SkASSERT(depthStencilSettings.fDepthTestEnabled ||
-                depthStencilSettings.fDepthCompareOp == CompareOp::kAlways);
+             depthStencilSettings.fDepthCompareOp == CompareOp::kAlways);
     wgpu::DepthStencilState depthStencil;
     wgpu::TextureFormat dsFormat =
             renderPassDesc.fDepthStencilAttachment.fTextureInfo.dawnTextureSpec().fFormat;
@@ -271,16 +271,90 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
 
     wgpu::RenderPipelineDescriptor descriptor;
 
-    descriptor.layout = nullptr;
     descriptor.depthStencil = &depthStencil;
     descriptor.fragment = &fragment;
 
+    const auto& device = sharedContext->device();
+    // Pipeline Layout
+    // Pipeline can be created with layout = null
+    {
+        std::array<wgpu::BindGroupLayout, 2> groupLayouts;
+        {
+            std::array<wgpu::BindGroupLayoutEntry, 3> entries;
+            // Vertex stage
+            entries[0].binding = kIntrinsicUniformBufferIndex;
+            entries[0].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+            entries[0].buffer.type = wgpu::BufferBindingType::Uniform;
+            entries[0].buffer.hasDynamicOffset = false;
+            entries[0].buffer.minBindingSize = 0;
+
+            entries[1].binding = kRenderStepUniformBufferIndex;
+            entries[1].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+            entries[1].buffer.type = wgpu::BufferBindingType::Uniform;
+            entries[1].buffer.hasDynamicOffset = false;
+            entries[1].buffer.minBindingSize = 0;
+
+            entries[2].binding = kPaintUniformBufferIndex;
+            entries[2].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+            entries[2].buffer.type = wgpu::BufferBindingType::Uniform;
+            entries[2].buffer.hasDynamicOffset = false;
+            entries[2].buffer.minBindingSize = 0;
+
+            wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
+            groupLayoutDesc.entryCount = entries.size();
+            groupLayoutDesc.entries = entries.data();
+            groupLayouts[0] = device.CreateBindGroupLayout(&groupLayoutDesc);
+            if (!groupLayouts[0]) {
+                SkASSERT(false);
+                return {};
+            }
+        }
+
+        {
+            std::array<wgpu::BindGroupLayoutEntry, 2> entries;
+            // Fragment stage
+            // We need sampler and texture info here.
+            // TODO:
+            entries[0].binding = 0;
+            entries[0].visibility = wgpu::ShaderStage::Fragment;
+            entries[0].sampler.type = wgpu::SamplerBindingType::Filtering;
+
+            // TODO:
+            entries[1].binding = 1;
+            entries[1].visibility = wgpu::ShaderStage::Fragment;
+            entries[1].texture.sampleType = wgpu::TextureSampleType::Float;
+            entries[1].texture.viewDimension = wgpu::TextureViewDimension::e2D;
+            entries[1].texture.multisampled = false;
+
+            wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
+            groupLayoutDesc.entryCount = entries.size();
+            groupLayoutDesc.entries = entries.data();
+            groupLayouts[1] = device.CreateBindGroupLayout(&groupLayoutDesc);
+            if (!groupLayouts[1]) {
+                SkASSERT(false);
+                return {};
+            }
+        }
+
+        wgpu::PipelineLayoutDescriptor layoutDesc;
+        layoutDesc.bindGroupLayoutCount = groupLayouts.size();
+        layoutDesc.bindGroupLayouts = groupLayouts.data();
+        auto layout = device.CreatePipelineLayout(&layoutDesc);
+        if (!layout) {
+            SkASSERT(false);
+            return {};
+        }
+        descriptor.layout = std::move(layout);
+    }
+
     // Vertex state
-    std::array<wgpu::VertexBufferLayout, kNumberBuffer> vertexBufferLayouts;
+    std::array<wgpu::VertexBufferLayout, 2> vertexBufferLayouts;
     // Vertex buffer layout
     std::vector<wgpu::VertexAttribute> vertexAttributes;
     {
-        auto& layout = vertexBufferLayouts[kVertexBufferIndex];
+        // slot 0 is for vertex buffer
+        // wgpu::RenderBundleEncoder::SetVertexBuffer(slot, buffer, offset, size)
+        auto& layout = vertexBufferLayouts[0];
         layout.arrayStride = create_vertex_attributes(vertexAttrs,
                                                       0,
                                                       &vertexAttributes);
@@ -292,7 +366,9 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     // Instance buffer layout
     std::vector<wgpu::VertexAttribute> instanceAttributes;
     {
-        auto& layout = vertexBufferLayouts[kInstanceBufferIndex];
+        // slot 1 is for instanced vertex buffer
+        // wgpu::RenderBundleEncoder::SetVertexBuffer(slot, buffer, offset, size)
+        auto& layout = vertexBufferLayouts[1];
         layout.arrayStride = create_vertex_attributes(instanceAttrs,
                                                       vertexAttrs.size(),
                                                       &instanceAttributes);
@@ -321,7 +397,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     descriptor.multisample.mask = 0xFFFFFFFF;
     descriptor.multisample.alphaToCoverageEnabled = false;
 
-    auto pipeline = sharedContext->device().CreateRenderPipeline(&descriptor);
+    auto pipeline = device.CreateRenderPipeline(&descriptor);
     if (!pipeline) {
         SkASSERT(false);
         return {};
