@@ -58,9 +58,9 @@ std::string SkShaderSnippet::getMangledUniformName(const SkShaderInfo& shaderInf
 }
 
 std::string SkShaderSnippet::getMangledSamplerName(int samplerIdx, int mangleId) const {
-    std::string result;
-    result = fTexturesAndSamplers[samplerIdx].name() + std::string("_") + std::to_string(mangleId);
-    return result;
+    std::string name = fTexturesAndSamplers[samplerIdx].name();
+    std::string id = std::to_string(mangleId);
+    return name + "_sampler_" + id + ", " + name + "_texture_" + id;
 }
 
 #if defined(SK_GRAPHITE_ENABLED) && defined(SK_ENABLE_SKSL)
