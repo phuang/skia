@@ -1,0 +1,21 @@
+layout(set = 0, binding = 0) uniform sampler s;
+layout(set = 0, binding = 1) uniform texture2D t;
+
+layout(location = 1) in float2 c;
+
+noinline half4 bottom_helper(texture2D t_param, sampler s_param) {
+    return sample(makeSampler2D(t_param, s_param), c);
+}
+
+noinline half4 helpers_helper(texture2D t_param, sampler s_param) {
+    half4 color = sample(makeSampler2D(t_param, s_param), c);
+    return color.bgra * bottom_helper(t_param, s_param);
+}
+
+noinline half4 helper(texture2D t_param, sampler s_param) {
+    return helpers_helper(t_param, s_param);
+}
+
+void main() {
+    sk_FragColor = helper(t, s);
+}

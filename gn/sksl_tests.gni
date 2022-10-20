@@ -509,6 +509,7 @@ sksl_shared_tests = [
   "/sksl/shared/FragCoordsNoRTFlip.sksl",
   "/sksl/shared/FunctionAnonymousParameters.sksl",
   "/sksl/shared/FunctionArgTypeMatch.sksl",
+  "/sksl/shared/FunctionParametersOfTextureAndSamplerType.sksl",
   "/sksl/shared/FunctionPrototype.sksl",
   "/sksl/shared/FunctionReturnTypeMatch.sksl",
   "/sksl/shared/Functions.sksl",
