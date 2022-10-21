@@ -35,12 +35,12 @@ public:
         return false;
     }
 
-    void waitUntilFinished(const SharedContext*) {
+    void waitUntilFinished() {
         // TODO
         SkASSERT(false);
     }
 
-    wgpu::CommandBuffer finishEncoding();
+    bool commit();
 
 private:
     DawnCommandBuffer(const DawnSharedContext* sharedContext,

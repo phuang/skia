@@ -27,8 +27,12 @@ using IntrinsicConstant = float[4];
 
 std::unique_ptr<DawnCommandBuffer> DawnCommandBuffer::Make(const DawnSharedContext* sharedContext,
                                                            DawnResourceProvider* resourceProvider) {
-    return std::unique_ptr<DawnCommandBuffer>(
+    std::unique_ptr<DawnCommandBuffer> cmdBuffer(
             new DawnCommandBuffer(sharedContext, resourceProvider));
+    if (!cmdBuffer->setNewCommandBufferResources()) {
+        return {};
+    }
+    return cmdBuffer;
 }
 
 DawnCommandBuffer::DawnCommandBuffer(const DawnSharedContext* sharedContext,
@@ -39,14 +43,16 @@ DawnCommandBuffer::DawnCommandBuffer(const DawnSharedContext* sharedContext,
 
 DawnCommandBuffer::~DawnCommandBuffer() {}
 
-wgpu::CommandBuffer DawnCommandBuffer::finishEncoding() {
+bool DawnCommandBuffer::commit() {
     // TODO
     SkASSERT(fCommandEncoder);
     wgpu::CommandBuffer cmdBuffer = fCommandEncoder.Finish();
-
-    fCommandEncoder = nullptr;
-
-    return cmdBuffer;
+    SkASSERT(cmdBuffer);
+    if (!cmdBuffer) {
+        return false;
+    }
+    fSharedContext->device().GetQueue().Submit(1, &cmdBuffer);
+    return true;
 }
 
 void DawnCommandBuffer::onResetCommandBuffer() {
@@ -72,7 +78,9 @@ bool DawnCommandBuffer::setNewCommandBufferResources() {
             SkASSERT(false);
         }
     }
+    SkASSERT(!fCommandEncoder);
     fCommandEncoder = fSharedContext->device().CreateCommandEncoder();
+    SkASSERT(fCommandEncoder);
     return true;
 }
 

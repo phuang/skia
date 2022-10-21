@@ -58,7 +58,7 @@ bool DawnCaps::onIsTexturable(const TextureInfo& info) const {
 
 bool DawnCaps::isTexturable(wgpu::TextureFormat format) const {
     const FormatInfo& formatInfo = this->getFormatInfo(format);
-    return SkToBool(FormatInfo::kTexturable_Flag && formatInfo.fFlags);
+    return SkToBool(FormatInfo::kTexturable_Flag & formatInfo.fFlags);
 }
 
 bool DawnCaps::isRenderable(const TextureInfo& info) const {

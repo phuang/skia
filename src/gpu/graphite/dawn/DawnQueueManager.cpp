@@ -7,6 +7,7 @@
 
 #include "src/gpu/graphite/dawn/DawnQueueManager.h"
 
+#include "src/gpu/graphite/GpuWorkSubmission.h"
 #include "include/gpu/graphite/dawn/DawnBackendContext.h"
 #include "src/gpu/graphite/dawn/DawnCommandBuffer.h"
 #include "src/gpu/graphite/dawn/DawnResourceProvider.h"
@@ -24,39 +25,34 @@ const DawnSharedContext* DawnQueueManager::dawnSharedContext() const {
     return static_cast<const DawnSharedContext*>(fSharedContext);
 }
 
-std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(
-        ResourceProvider* resourceProvider) {
+std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(ResourceProvider* resourceProvider) {
     return DawnCommandBuffer::Make(dawnSharedContext(),
                                    static_cast<DawnResourceProvider*>(resourceProvider));
 }
 
-// class WorkSubmission final : public GpuWorkSubmission {
-// public:
-//     WorkSubmission(sk_sp<CommandBuffer> cmdBuffer)
-//         : GpuWorkSubmission(std::move(cmdBuffer)) {}
-//     ~WorkSubmission() override {}
+class DawnWorkSubmission final : public GpuWorkSubmission {
+public:
+    DawnWorkSubmission(std::unique_ptr<CommandBuffer> cmdBuffer, QueueManager* queueManager)
+        : GpuWorkSubmission(std::move(cmdBuffer), queueManager) {}
+    ~DawnWorkSubmission() override {}
 
-//     bool isFinished() override {
-//         return static_cast<MtlCommandBuffer*>(this->commandBuffer())->isFinished();
-//     }
-//     void waitUntilFinished(const SharedContext* context) override {
-//         return static_cast<MtlCommandBuffer*>(this->commandBuffer())->waitUntilFinished(context);
-//     }
-// };
+    bool isFinished() override {
+        return static_cast<DawnCommandBuffer*>(this->commandBuffer())->isFinished();
+    }
+    void waitUntilFinished() override {
+        return static_cast<DawnCommandBuffer*>(this->commandBuffer())->waitUntilFinished();
+    }
+};
 
 QueueManager::OutstandingSubmission DawnQueueManager::onSubmitToGpu() {
-    // SkASSERT(fCurrentCommandBuffer);
-    // MtlCommandBuffer* mtlCmdBuffer = static_cast<MtlCommandBuffer*>(fCurrentCommandBuffer.get());
-    // if (!mtlCmdBuffer->commit()) {
-    //     fCurrentCommandBuffer->callFinishedProcs(/*success=*/false);
-    //     return nullptr;
-    // }
+    SkASSERT(fCurrentCommandBuffer);
+    DawnCommandBuffer* dawnCmdBuffer = static_cast<DawnCommandBuffer*>(fCurrentCommandBuffer.get());
+    if (!dawnCmdBuffer->commit()) {
+        fCurrentCommandBuffer->callFinishedProcs(/*success=*/false);
+        return nullptr;
+    }
 
-    // std::unique_ptr<GpuWorkSubmission> submission(
-    //         new WorkSubmission(std::move(fCurrentCommandBuffer)));
-    // return submission;
-    SkASSERT(false);
-    return nullptr;
+    return std::make_unique<DawnWorkSubmission>(std::move(fCurrentCommandBuffer), this);
 }
 
 #if GRAPHITE_TEST_UTILS

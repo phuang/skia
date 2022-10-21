@@ -63,13 +63,11 @@ wgpu::Texture DawnTexture::MakeDawnTexture(const DawnSharedContext* sharedContex
     // SkASSERT(!dawnSpec.fFramebufferOnly);
 
     if (dawnSpec.fUsage & wgpu::TextureUsage::TextureBinding && !caps->isTexturable(info)) {
-        SkASSERT(false);
         return {};
     }
 
     if (dawnSpec.fUsage & wgpu::TextureUsage::RenderAttachment &&
         !(caps->isRenderable(info) || DawnFormatIsDepthOrStencil(dawnSpec.fFormat))) {
-        SkASSERT(false);
         return {};
     }
 
@@ -112,7 +110,6 @@ sk_sp<Texture> DawnTexture::Make(const DawnSharedContext* sharedContext,
                                  SkBudgeted budgeted) {
     auto texture = MakeDawnTexture(sharedContext, dimensions, info);
     if (!texture) {
-        SkASSERT(false);
         return {};
     }
     return sk_sp<Texture>(new DawnTexture(sharedContext,
