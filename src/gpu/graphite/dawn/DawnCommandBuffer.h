@@ -40,7 +40,7 @@ public:
         SkASSERT(false);
     }
 
-    bool commit();
+    wgpu::CommandBuffer finishEncoding();
 
 private:
     DawnCommandBuffer(const DawnSharedContext* sharedContext,

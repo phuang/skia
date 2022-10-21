@@ -7,19 +7,18 @@
 
 #include "src/gpu/graphite/dawn/DawnQueueManager.h"
 
-#include "src/gpu/graphite/GpuWorkSubmission.h"
+#include <thread>
+
 #include "include/gpu/graphite/dawn/DawnBackendContext.h"
 #include "src/gpu/graphite/dawn/DawnCommandBuffer.h"
 #include "src/gpu/graphite/dawn/DawnResourceProvider.h"
 #include "src/gpu/graphite/dawn/DawnSharedContext.h"
 
-
 namespace skgpu::graphite {
 
 DawnQueueManager::DawnQueueManager(const DawnBackendContext& backendContext,
                                    const SharedContext* sharedContext)
-        : QueueManager(sharedContext)
-        , fQueue(backendContext.fQueue) {}
+        : QueueManager(sharedContext), fQueue(backendContext.fQueue) {}
 
 const DawnSharedContext* DawnQueueManager::dawnSharedContext() const {
     return static_cast<const DawnSharedContext*>(fSharedContext);
@@ -32,35 +31,60 @@ std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(ResourcePro
 
 class DawnWorkSubmission final : public GpuWorkSubmission {
 public:
-    DawnWorkSubmission(std::unique_ptr<CommandBuffer> cmdBuffer, QueueManager* queueManager)
-        : GpuWorkSubmission(std::move(cmdBuffer), queueManager) {}
+    DawnWorkSubmission(std::unique_ptr<CommandBuffer> cmdBuffer,
+                       QueueManager* queueManager,
+                       wgpu::Device device)
+            : GpuWorkSubmission(std::move(cmdBuffer), queueManager), fDevice(std::move(device)) {}
     ~DawnWorkSubmission() override {}
 
     bool isFinished() override {
-        return static_cast<DawnCommandBuffer*>(this->commandBuffer())->isFinished();
+        if (!fFinished) {
+            fDevice.Tick();
+        }
+        return fFinished;
     }
     void waitUntilFinished() override {
-        return static_cast<DawnCommandBuffer*>(this->commandBuffer())->waitUntilFinished();
+        while (!fFinished) {
+            fDevice.Tick();
+            std::this_thread::yield();
+        }
     }
+
+    bool fFinished = false;
+
+private:
+    wgpu::Device fDevice;
 };
 
 QueueManager::OutstandingSubmission DawnQueueManager::onSubmitToGpu() {
     SkASSERT(fCurrentCommandBuffer);
     DawnCommandBuffer* dawnCmdBuffer = static_cast<DawnCommandBuffer*>(fCurrentCommandBuffer.get());
-    if (!dawnCmdBuffer->commit()) {
+    auto wgpuCmdBuffer = dawnCmdBuffer->finishEncoding();
+    if (!wgpuCmdBuffer) {
         fCurrentCommandBuffer->callFinishedProcs(/*success=*/false);
         return nullptr;
     }
 
-    return std::make_unique<DawnWorkSubmission>(std::move(fCurrentCommandBuffer), this);
+    fQueue.Submit(1, &wgpuCmdBuffer);
+
+    std::unique_ptr<DawnWorkSubmission> submission(new DawnWorkSubmission(
+            std::move(fCurrentCommandBuffer), this, dawnSharedContext()->device()));
+
+    fQueue.OnSubmittedWorkDone(
+            0,
+            [](WGPUQueueWorkDoneStatus, void* userdata) {
+                auto finishedFlagPtr = static_cast<bool*>(userdata);
+                *finishedFlagPtr = true;
+            },
+            &submission->fFinished);
+
+    return submission;
 }
 
 #if GRAPHITE_TEST_UTILS
-void DawnQueueManager::startCapture() {
-}
+void DawnQueueManager::startCapture() {}
 
-void DawnQueueManager::stopCapture() {
-}
+void DawnQueueManager::stopCapture() {}
 #endif
 
-} // namespace skgpu::graphite
+}  // namespace skgpu::graphite

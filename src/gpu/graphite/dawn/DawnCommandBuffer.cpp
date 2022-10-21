@@ -43,16 +43,14 @@ DawnCommandBuffer::DawnCommandBuffer(const DawnSharedContext* sharedContext,
 
 DawnCommandBuffer::~DawnCommandBuffer() {}
 
-bool DawnCommandBuffer::commit() {
+wgpu::CommandBuffer DawnCommandBuffer::finishEncoding() {
     // TODO
     SkASSERT(fCommandEncoder);
     wgpu::CommandBuffer cmdBuffer = fCommandEncoder.Finish();
-    SkASSERT(cmdBuffer);
-    if (!cmdBuffer) {
-        return false;
-    }
-    fSharedContext->device().GetQueue().Submit(1, &cmdBuffer);
-    return true;
+
+    fCommandEncoder = nullptr;
+
+    return cmdBuffer;
 }
 
 void DawnCommandBuffer::onResetCommandBuffer() {
