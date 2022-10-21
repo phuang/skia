@@ -91,12 +91,10 @@ bool DawnCommandBuffer::onAddRenderPass(const RenderPassDesc& renderPassDesc,
     int numViewports = 0;
     for (auto& drawPass : drawPasses) {
         for (auto [type, cmdPtr] : drawPass->commands()) {
-            switch (type) {
-                case DrawPassCommands::Type::kSetViewport: {
-                    numViewports++;
-                    auto sv = static_cast<DrawPassCommands::SetViewport*>(cmdPtr);
-                    preprocessViewport(*sv);
-                } break;
+            if (type == DrawPassCommands::Type::kSetViewport) {
+                numViewports++;
+                auto sv = static_cast<DrawPassCommands::SetViewport*>(cmdPtr);
+                preprocessViewport(*sv);
             }
         }
     }
@@ -166,7 +164,15 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
         wgpuRenderpass.colorAttachmentCount = 1;
 
         // TODO: check Texture matches RenderPassDesc
-        colorAttachment.view = ((DawnTexture*)colorTexture)->dawnTextureView();
+        const auto* dawnColorTexture = static_cast<const DawnTexture*>(colorTexture);
+        if (const auto& texture = dawnColorTexture->dawnTexture()) {
+            SkASSERT(!dawnColorTexture->dawnTextureView());
+            colorAttachment.view = texture.CreateView();
+            SkASSERT(colorAttachment.view);
+        } else {
+            SkASSERT(dawnColorTexture->dawnTextureView());
+            colorAttachment.view = dawnColorTexture->dawnTextureView();
+        }
         const std::array<float, 4>& clearColor = renderPassDesc.fClearColor;
         colorAttachment.clearValue = {clearColor[0], clearColor[1], clearColor[2], clearColor[3]};
         colorAttachment.loadOp = wgpuLoadActionMap[static_cast<int>(colorInfo.fLoadOp)];
@@ -175,7 +181,15 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
         if (resolveTexture) {
             SkASSERT(renderPassDesc.fColorResolveAttachment.fStoreOp == StoreOp::kStore);
             // TODO: check Texture matches RenderPassDesc
-            colorAttachment.resolveTarget = ((DawnTexture*)resolveTexture)->dawnTextureView();
+            const auto* dawnResolveTexture = static_cast<const DawnTexture*>(resolveTexture);
+            if (const auto& texture = dawnResolveTexture->dawnTexture()) {
+                SkASSERT(!dawnResolveTexture->dawnTextureView());
+                colorAttachment.resolveTarget = texture.CreateView();
+                SkASSERT(colorAttachment.resolveTarget);
+            } else {
+                SkASSERT(dawnResolveTexture->dawnTextureView());
+                colorAttachment.resolveTarget = dawnResolveTexture->dawnTextureView();
+            }
             // Inclusion of a resolve texture implies the client wants to finish the
             // renderpass with a resolve.
             SkASSERT(colorAttachment.storeOp == wgpu::StoreOp::Discard);
@@ -193,8 +207,15 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
     if (depthStencilTexture) {
         wgpuRenderpass.depthStencilAttachment = &depthStencilAttachment;
         // TODO: check Texture matches RenderPassDesc
-        auto dawnTextureView = ((DawnTexture*)depthStencilTexture)->dawnTextureView();
-        depthStencilAttachment.view = dawnTextureView;
+        const auto* dawnDepthStencilTexture = static_cast<const DawnTexture*>(depthStencilTexture);
+        if (const auto& texture = dawnDepthStencilTexture->dawnTexture()) {
+            SkASSERT(!dawnDepthStencilTexture->dawnTextureView());
+            depthStencilAttachment.view = texture.CreateView();
+            SkASSERT(depthStencilAttachment.view);
+        } else {
+            SkASSERT(dawnDepthStencilTexture->dawnTextureView());
+            depthStencilAttachment.view = dawnDepthStencilTexture->dawnTextureView();
+        }
 
         depthStencilAttachment.depthClearValue = renderPassDesc.fClearDepth;
         depthStencilAttachment.depthLoadOp =
@@ -315,7 +336,6 @@ void DawnCommandBuffer::addDrawPass(const DrawPass* drawPass) {
 void DawnCommandBuffer::bindGraphicsPipeline(const GraphicsPipeline* graphicsPipeline) {
     SkASSERT(false);
     fActiveGraphicsPipeline = static_cast<const DawnGraphicsPipeline*>(graphicsPipeline);
-
     fBoundUniformBuffersDirty = true;
 }
 

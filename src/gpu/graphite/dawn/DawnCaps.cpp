@@ -113,14 +113,11 @@ TextureInfo DawnCaps::getDefaultMSAATextureInfo(const TextureInfo& singleSampled
                                                 Discardable discardable) const {
     const DawnTextureSpec& singleSpec = singleSampledInfo.dawnTextureSpec();
 
-    constexpr wgpu::TextureUsage usage = wgpu::TextureUsage::RenderAttachment |
-                                         wgpu::TextureUsage::TextureBinding;
-
     DawnTextureInfo info;
     info.fSampleCount = this->defaultMSAASamples();
     info.fLevelCount = 1;
     info.fFormat = singleSpec.fFormat;
-    info.fUsage = usage;
+    info.fUsage = wgpu::TextureUsage::RenderAttachment;
     // TODO: ?
     // info.fStorageMode = this->getDefaultMSAAStorageMode(discardable);
     // info.fFramebufferOnly = false;
@@ -131,14 +128,11 @@ TextureInfo DawnCaps::getDefaultMSAATextureInfo(const TextureInfo& singleSampled
 TextureInfo DawnCaps::getDefaultDepthStencilTextureInfo(SkEnumBitMask<DepthStencilFlags> depthStencilType,
                                                         uint32_t sampleCount,
                                                         Protected) const {
-    constexpr wgpu::TextureUsage usage = wgpu::TextureUsage::RenderAttachment |
-                                         wgpu::TextureUsage::TextureBinding;
-
     DawnTextureInfo info;
     info.fSampleCount = sampleCount;
     info.fLevelCount = 1;
     info.fFormat = DawnDepthStencilFlagsToFormat(depthStencilType);
-    info.fUsage = usage;
+    info.fUsage = wgpu::TextureUsage::RenderAttachment;
     // TODO: ?
     // info.fStorageMode = this->getDefaultMSAAStorageMode(Discardable::kYes);
     // info.fFramebufferOnly = false;
@@ -215,11 +209,10 @@ void DawnCaps::initCaps(const wgpu::Device& device) {
     // Init sample counts. All devices support 1 (i.e. 0 in skia).
     fColorSampleCounts.push_back(1);
     // TODO
-    // for (auto sampleCnt : {2, 4, 8}) {
-    //     if ([device supportsTextureSampleCount:sampleCnt]) {
-    //         fColorSampleCounts.push_back(sampleCnt);
-    //     }
-    // }
+    for (auto sampleCnt : {2, 4, 8}) {
+        // TODO: check availability
+        fColorSampleCounts.push_back(sampleCnt);
+    }
 }
 
 void DawnCaps::initFormatTable(const wgpu::Device& device) {
