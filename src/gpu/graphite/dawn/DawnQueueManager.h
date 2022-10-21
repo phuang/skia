@@ -20,10 +20,8 @@ class SharedContext;
 
 class DawnQueueManager : public QueueManager {
 public:
-    DawnQueueManager(const DawnBackendContext&,
-                     const SharedContext*);
+    DawnQueueManager(const DawnBackendContext&, const SharedContext*);
     ~DawnQueueManager() override {}
-
 private:
     const DawnSharedContext* dawnSharedContext() const;
 

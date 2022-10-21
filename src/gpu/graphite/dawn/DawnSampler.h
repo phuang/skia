@@ -28,7 +28,7 @@ public:
 
     ~DawnSampler() override {}
 
-    const wgpu::Sampler& sampler() const { return fSampler; }
+    const wgpu::Sampler& dawnSampler() const { return fSampler; }
 
 private:
     DawnSampler(const DawnSharedContext* sharedContext,

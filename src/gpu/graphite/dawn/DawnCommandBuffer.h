@@ -12,17 +12,20 @@
 #include "src/gpu/graphite/DrawPass.h"
 #include "src/gpu/graphite/GpuWorkSubmission.h"
 #include "src/gpu/graphite/Log.h"
+#include "src/gpu/graphite/dawn/DawnStagingBufferPool.h"
+
 
 #include "webgpu/webgpu_cpp.h"
 
 namespace skgpu::graphite {
+class DawnGraphicsPipeline;
+class DawnQueueManager;
 class DawnResourceProvider;
 class DawnSharedContext;
 
 class DawnCommandBuffer final : public CommandBuffer {
 public:
-    static std::unique_ptr<DawnCommandBuffer> Make(wgpu::CommandBuffer cmdBuffer,
-                                                   const DawnSharedContext*,
+    static std::unique_ptr<DawnCommandBuffer> Make(const DawnSharedContext*,
                                                    DawnResourceProvider*);
     ~DawnCommandBuffer() override;
 
@@ -37,13 +40,14 @@ public:
         SkASSERT(false);
     }
 
-    bool commit();
-
+    wgpu::CommandBuffer finishEncoding();
 
 private:
-    DawnCommandBuffer(wgpu::CommandBuffer cmdBuffer,
-                      const DawnSharedContext* sharedContext,
+    DawnCommandBuffer(const DawnSharedContext* sharedContext,
                       DawnResourceProvider* resourceProvider);
+
+    void onResetCommandBuffer() override;
+    bool setNewCommandBufferResources() override;
 
     bool onAddRenderPass(const RenderPassDesc&,
                          const Texture* colorTexture,
@@ -70,14 +74,13 @@ private:
     void bindDrawBuffers(const BindBufferInfo& vertices,
                          const BindBufferInfo& instances,
                          const BindBufferInfo& indices);
-    void bindVertexBuffers(const Buffer* vertexBuffer, size_t vertexOffset,
-                           const Buffer* instanceBuffer, size_t instanceOffset);
-    void bindIndexBuffer(const Buffer* indexBuffer, size_t offset);
 
-    void bindTextureAndSampler(const Texture*, const Sampler*, unsigned int bindIndex);
+    void bindTextureAndSamplers(const DrawPass& drawPass,
+                                const DrawPassCommands::BindTexturesAndSamplers& command);
 
     void setScissor(unsigned int left, unsigned int top,
                     unsigned int width, unsigned int height);
+    void preprocessViewport(const DrawPassCommands::SetViewport& viewportCommand);
     void setViewport(float x, float y, float width, float height,
                      float minDepth, float maxDepth);
 
@@ -113,10 +116,22 @@ private:
                                 const Texture* dst,
                                 SkIPoint dstPoint) override;
     bool onSynchronizeBufferToCpu(const Buffer*, bool* outDidResultInWork) override;
-    void onResetCommandBuffer() override;
-    bool setNewCommandBufferResources() override;
 
-    wgpu::CommandBuffer fCommandBuffer;
+    void syncUniformBuffers();
+
+    bool fBoundUniformBuffersDirty = false;
+
+    // TODO: use proper max number of binding slots.
+    std::array<wgpu::Buffer, 16> fBoundUniformBuffers;
+    std::array<size_t, 16> fBoundUniformBufferOffsets;
+    std::array<size_t, 16> fBoundUniformBufferRanges;
+
+    wgpu::CommandEncoder fCommandEncoder;
+    wgpu::RenderPassEncoder fActiveRenderPassEncoder;
+    wgpu::ComputePassEncoder fActiveComputePassEncoder;
+    wgpu::Buffer fConstantBuffer;
+    DawnStagingBufferPool fConstantStagingBufferPool;
+    const DawnGraphicsPipeline* fActiveGraphicsPipeline = nullptr;
     [[maybe_unused]] const DawnSharedContext* fSharedContext;
     [[maybe_unused]] DawnResourceProvider* fResourceProvider;
 };

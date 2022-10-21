@@ -24,9 +24,10 @@ const DawnSharedContext* DawnQueueManager::dawnSharedContext() const {
     return static_cast<const DawnSharedContext*>(fSharedContext);
 }
 
-std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(ResourceProvider* resourceProvider) {
-    SkASSERT(false);
-    return nullptr;
+std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(
+        ResourceProvider* resourceProvider) {
+    return DawnCommandBuffer::Make(dawnSharedContext(),
+                                   static_cast<DawnResourceProvider*>(resourceProvider));
 }
 
 // class WorkSubmission final : public GpuWorkSubmission {

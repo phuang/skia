@@ -210,6 +210,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
                                                        SPIRVFunction vertexMain,
                                                        SkSpan<const Attribute> vertexAttrs,
                                                        SkSpan<const Attribute> instanceAttrs,
+                                                       PrimitiveType primitiveType,
                                                        SPIRVFunction fragmentMain,
                                                        const DepthStencilSettings& depthStencilSettings,
                                                        const BlendInfo& blendInfo,
@@ -348,7 +349,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     }
 
     // Vertex state
-    std::array<wgpu::VertexBufferLayout, 2> vertexBufferLayouts;
+    std::array<wgpu::VertexBufferLayout, kNumVertexBuffers> vertexBufferLayouts;
     // Vertex buffer layout
     std::vector<wgpu::VertexAttribute> vertexAttributes;
     {
@@ -405,6 +406,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
 
     return sk_sp<DawnGraphicsPipeline>(new DawnGraphicsPipeline(sharedContext,
                                                                 std::move(pipeline),
+                                                                primitiveType,
                                                                 depthStencilSettings.fStencilReferenceValue));
 }
 

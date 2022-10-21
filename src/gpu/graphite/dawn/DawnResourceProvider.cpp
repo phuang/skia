@@ -165,6 +165,7 @@ sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
                                       {std::move(vsModule), "main"},
                                       step->vertexAttributes(),
                                       step->instanceAttributes(),
+                                      step->primitiveType(),
                                       {std::move(fsModule), "main"},
                                       step->depthStencilSettings(),
                                       blendInfo,
