@@ -139,12 +139,11 @@ void DawnBuffer::onUnmap() {
         return;
     }
 
-    if (supportMapWrite) {
-        dawnSharedContext()->queue().WriteBuffer(fBuffer,
-                                                 0,
-                                                 fStagingBuffer.data(),
-                                                 size());
-    }
+    // TODO: avoid this extra memory copy
+    dawnSharedContext()->queue().WriteBuffer(fBuffer,
+                                             0,
+                                             fStagingBuffer.data(),
+                                             size());
 }
 
 void DawnBuffer::freeGpuData() {

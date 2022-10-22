@@ -44,6 +44,7 @@ DawnCommandBuffer::DawnCommandBuffer(const DawnSharedContext* sharedContext,
 DawnCommandBuffer::~DawnCommandBuffer() {}
 
 wgpu::CommandBuffer DawnCommandBuffer::finishEncoding() {
+    SkDebugf("EEEE %s\n", __func__);
     // TODO
     SkASSERT(fCommandEncoder);
     wgpu::CommandBuffer cmdBuffer = fCommandEncoder.Finish();
@@ -88,6 +89,7 @@ bool DawnCommandBuffer::onAddRenderPass(const RenderPassDesc& renderPassDesc,
                                         const Texture* resolveTexture,
                                         const Texture* depthStencilTexture,
                                         const std::vector<std::unique_ptr<DrawPass>>& drawPasses) {
+    SkDebugf("EEEE %s\n", __func__);
     // Update viewport's constant buffer before starting a render pass.
     int numViewports = 0;
     for (auto& drawPass : drawPasses) {
@@ -134,6 +136,7 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
                                        const Texture* colorTexture,
                                        const Texture* resolveTexture,
                                        const Texture* depthStencilTexture) {
+    SkDebugf("EEEE %s\n", __func__);
     SkASSERT(!fActiveRenderPassEncoder);
     SkASSERT(!fActiveComputePassEncoder);
 
@@ -180,6 +183,7 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
         colorAttachment.storeOp = wgpuStoreActionMap[static_cast<int>(colorInfo.fStoreOp)];
 
         // Set up resolve attachment
+        SkDebugf("EEEE %s resolveTexture=%d\n", __func__, !!resolveTexture);
         if (resolveTexture) {
             SkASSERT(renderPassDesc.fColorResolveAttachment.fStoreOp == StoreOp::kStore);
             // TODO: check Texture matches RenderPassDesc
@@ -257,8 +261,10 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
 }
 
 void DawnCommandBuffer::endRenderPass() {
+    SkDebugf("EEEE %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
     fActiveRenderPassEncoder.End();
+    fActiveRenderPassEncoder = nullptr;
 }
 
 void DawnCommandBuffer::addDrawPass(const DrawPass* drawPass) {
@@ -378,8 +384,9 @@ void DawnCommandBuffer::bindUniformBuffer(const BindBufferInfo& info, UniformSlo
 }
 
 void DawnCommandBuffer::bindDrawBuffers(const BindBufferInfo& vertices,
-                                       const BindBufferInfo& instances,
-                                       const BindBufferInfo& indices) {
+                                        const BindBufferInfo& instances,
+                                        const BindBufferInfo& indices) {
+    SkDebugf("EEEE %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
 
     if (vertices.fBuffer) {
@@ -495,7 +502,8 @@ void DawnCommandBuffer::preprocessViewport(const DrawPassCommands::SetViewport& 
     const float invTwoH = 2.f / viewportCommand.fViewport.height();
     const IntrinsicConstant rtAdjust = {invTwoW, -invTwoH, -1.f - x * invTwoW, 1.f + y * invTwoH};
 
-    fConstantStagingBufferPool.writeBuffer(fSharedContext->device(), fCommandEncoder, fConstantBuffer, &rtAdjust);
+    fCommandEncoder.WriteBuffer(fConstantBuffer, 0, reinterpret_cast<const uint8_t*>(rtAdjust), sizeof(IntrinsicConstant));
+    // fConstantStagingBufferPool.writeBuffer(fSharedContext->device(), fCommandEncoder, fConstantBuffer, &rtAdjust);
 }
 
 void DawnCommandBuffer::setViewport(float x, float y, float width, float height,
@@ -514,6 +522,7 @@ void DawnCommandBuffer::setBlendConstants(float* blendConstants) {
 void DawnCommandBuffer::draw(PrimitiveType type,
                              unsigned int baseVertex,
                              unsigned int vertexCount) {
+    SkDebugf("EEEE %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
     SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
 
@@ -524,6 +533,7 @@ void DawnCommandBuffer::draw(PrimitiveType type,
 
 void DawnCommandBuffer::drawIndexed(PrimitiveType type, unsigned int baseIndex,
                                     unsigned int indexCount, unsigned int baseVertex) {
+    SkDebugf("EEEE %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
     SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
 
@@ -535,6 +545,7 @@ void DawnCommandBuffer::drawIndexed(PrimitiveType type, unsigned int baseIndex,
 void DawnCommandBuffer::drawInstanced(PrimitiveType type, unsigned int baseVertex,
                                       unsigned int vertexCount, unsigned int baseInstance,
                                       unsigned int instanceCount) {
+    SkDebugf("EEEE %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
     SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
 
@@ -549,8 +560,9 @@ void DawnCommandBuffer::drawIndexedInstanced(PrimitiveType type,
                                              unsigned int baseVertex,
                                              unsigned int baseInstance,
                                              unsigned int instanceCount) {
+    SkDebugf("EEEE %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
-    // SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
+    SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
 
     syncUniformBuffers();
 

@@ -139,7 +139,7 @@ size_t create_vertex_attributes(SkSpan<const Attribute> attrs,
     size_t vertexAttributeOffset = 0;
     int attributeIndex = 0;
     for (const auto& attr : attrs) {
-        wgpu::VertexAttribute& vertexAttribute =  out->at(attributeIndex);
+        wgpu::VertexAttribute& vertexAttribute =  (*out)[attributeIndex];
         vertexAttribute.format = attribute_type_to_dawn(attr.cpuType());
         SkASSERT(vertexAttribute.format != wgpu::VertexFormat::Undefined);
         vertexAttribute.offset = vertexAttributeOffset;
@@ -266,9 +266,9 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     depthStencil.stencilReadMask = depthStencilSettings.fFrontStencil.fReadMask;
     depthStencil.stencilWriteMask = depthStencilSettings.fFrontStencil.fWriteMask;
     // TODO?
-    depthStencil.depthBias = 0;
-    depthStencil.depthBiasSlopeScale = 0.0f;
-    depthStencil.depthBiasClamp = 0.0f;
+    // depthStencil.depthBias = 0;
+    // depthStencil.depthBiasSlopeScale = 0.0f;
+    // depthStencil.depthBiasClamp = 0.0f;
 
     wgpu::RenderPipelineDescriptor descriptor;
 
@@ -390,11 +390,21 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     // TODO
     descriptor.primitive.frontFace = wgpu::FrontFace::CCW;
     descriptor.primitive.cullMode = wgpu::CullMode::None;
-    descriptor.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
+    switch(primitiveType) {
+        case PrimitiveType::kTriangles:
+            descriptor.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
+            break;
+        case PrimitiveType::kTriangleStrip:
+            descriptor.primitive.topology = wgpu::PrimitiveTopology::TriangleStrip;
+            break;
+        case PrimitiveType::kPoints:
+            descriptor.primitive.topology = wgpu::PrimitiveTopology::PointList;
+            break;
+    }
     descriptor.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
 
     // TODO
-    descriptor.multisample.count = 4;
+    descriptor.multisample.count = renderPassDesc.fColorAttachment.fTextureInfo.numSamples();
     descriptor.multisample.mask = 0xFFFFFFFF;
     descriptor.multisample.alphaToCoverageEnabled = false;
 

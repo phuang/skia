@@ -69,13 +69,14 @@ private:
                          uint32_t refValue)
         : GraphicsPipeline(sharedContext)
         , fRenderPipeline(std::move(renderPipeline))
+        , fPrimitiveType(primitiveType)
         , fStencilReferenceValue(refValue) {}
 
     void freeGpuData() override;
 
     wgpu::RenderPipeline fRenderPipeline;
-    PrimitiveType fPrimitiveType;
-    uint32_t fStencilReferenceValue;
+    const PrimitiveType fPrimitiveType;
+    const uint32_t fStencilReferenceValue;
 };
 
 } // namespace skgpu::graphite
