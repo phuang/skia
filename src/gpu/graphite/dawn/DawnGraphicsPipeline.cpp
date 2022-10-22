@@ -287,19 +287,19 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
             entries[0].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
             entries[0].buffer.type = wgpu::BufferBindingType::Uniform;
             entries[0].buffer.hasDynamicOffset = false;
-            entries[0].buffer.minBindingSize = 0;
+            entries[0].buffer.minBindingSize = WGPU_WHOLE_SIZE;
 
             entries[1].binding = kRenderStepUniformBufferIndex;
             entries[1].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
             entries[1].buffer.type = wgpu::BufferBindingType::Uniform;
             entries[1].buffer.hasDynamicOffset = false;
-            entries[1].buffer.minBindingSize = 0;
+            entries[1].buffer.minBindingSize = WGPU_WHOLE_SIZE;
 
             entries[2].binding = kPaintUniformBufferIndex;
             entries[2].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
             entries[2].buffer.type = wgpu::BufferBindingType::Uniform;
             entries[2].buffer.hasDynamicOffset = false;
-            entries[2].buffer.minBindingSize = 0;
+            entries[2].buffer.minBindingSize = WGPU_WHOLE_SIZE;
 
             wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
             groupLayoutDesc.entryCount = entries.size();
@@ -345,7 +345,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
             SkASSERT(false);
             return {};
         }
-        descriptor.layout = std::move(layout);
+        // descriptor.layout = std::move(layout);
     }
 
     // Vertex state
@@ -394,7 +394,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     descriptor.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
 
     // TODO
-    descriptor.multisample.count = 1;
+    descriptor.multisample.count = 4;
     descriptor.multisample.mask = 0xFFFFFFFF;
     descriptor.multisample.alphaToCoverageEnabled = false;
 

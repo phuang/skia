@@ -70,10 +70,11 @@ bool DawnCommandBuffer::setNewCommandBufferResources() {
         wgpu::BufferDescriptor desc;
         desc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
         desc.size = sizeof(IntrinsicConstant);
-        desc.mappedAtCreation = true;
+        desc.mappedAtCreation = false;
         fConstantBuffer = fSharedContext->device().CreateBuffer(&desc);
         if (!fConstantBuffer) {
             SkASSERT(false);
+            return false;
         }
     }
     SkASSERT(!fCommandEncoder);
@@ -139,7 +140,7 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
     constexpr static wgpu::LoadOp wgpuLoadActionMap[]{
             wgpu::LoadOp::Load,
             wgpu::LoadOp::Clear,
-            wgpu::LoadOp::Clear  // Don't care
+            wgpu::LoadOp::Undefined  // Don't care
     };
     static_assert((int)LoadOp::kLoad == 0);
     static_assert((int)LoadOp::kClear == 1);
@@ -152,7 +153,7 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
     static_assert((int)StoreOp::kDiscard == 1);
     static_assert(std::size(wgpuStoreActionMap) == kStoreOpCount);
 
-    wgpu::RenderPassDescriptor wgpuRenderpass = {};
+    wgpu::RenderPassDescriptor wgpuRenderPass = {};
     wgpu::RenderPassColorAttachment colorAttachment;
     wgpu::RenderPassDepthStencilAttachment depthStencilAttachment;
 
@@ -160,8 +161,8 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
     auto& colorInfo = renderPassDesc.fColorAttachment;
     bool loadMSAAFromResolve = false;
     if (colorTexture) {
-        wgpuRenderpass.colorAttachments = &colorAttachment;
-        wgpuRenderpass.colorAttachmentCount = 1;
+        wgpuRenderPass.colorAttachments = &colorAttachment;
+        wgpuRenderPass.colorAttachmentCount = 1;
 
         // TODO: check Texture matches RenderPassDesc
         const auto* dawnColorTexture = static_cast<const DawnTexture*>(colorTexture);
@@ -177,6 +178,7 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
         colorAttachment.clearValue = {clearColor[0], clearColor[1], clearColor[2], clearColor[3]};
         colorAttachment.loadOp = wgpuLoadActionMap[static_cast<int>(colorInfo.fLoadOp)];
         colorAttachment.storeOp = wgpuStoreActionMap[static_cast<int>(colorInfo.fStoreOp)];
+
         // Set up resolve attachment
         if (resolveTexture) {
             SkASSERT(renderPassDesc.fColorResolveAttachment.fStoreOp == StoreOp::kStore);
@@ -205,9 +207,11 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
     // Set up stencil/depth attachment
     auto& depthStencilInfo = renderPassDesc.fDepthStencilAttachment;
     if (depthStencilTexture) {
-        wgpuRenderpass.depthStencilAttachment = &depthStencilAttachment;
-        // TODO: check Texture matches RenderPassDesc
         const auto* dawnDepthStencilTexture = static_cast<const DawnTexture*>(depthStencilTexture);
+        auto format = dawnDepthStencilTexture->textureInfo().dawnTextureSpec().fFormat;
+        SkASSERT(DawnFormatIsDepthOrStencil(format));
+
+        // TODO: check Texture matches RenderPassDesc
         if (const auto& texture = dawnDepthStencilTexture->dawnTexture()) {
             SkASSERT(!dawnDepthStencilTexture->dawnTextureView());
             depthStencilAttachment.view = texture.CreateView();
@@ -217,23 +221,28 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
             depthStencilAttachment.view = dawnDepthStencilTexture->dawnTextureView();
         }
 
-        depthStencilAttachment.depthClearValue = renderPassDesc.fClearDepth;
-        depthStencilAttachment.depthLoadOp =
-                wgpuLoadActionMap[static_cast<int>(depthStencilInfo.fLoadOp)];
-        depthStencilAttachment.depthStoreOp =
-                wgpuStoreActionMap[static_cast<int>(depthStencilInfo.fStoreOp)];
+        if (DawnFormatIsDepth(format)) {
+            depthStencilAttachment.depthClearValue = renderPassDesc.fClearDepth;
+            depthStencilAttachment.depthLoadOp =
+                    wgpuLoadActionMap[static_cast<int>(depthStencilInfo.fLoadOp)];
+            depthStencilAttachment.depthStoreOp =
+                    wgpuStoreActionMap[static_cast<int>(depthStencilInfo.fStoreOp)];
+        }
 
-        depthStencilAttachment.stencilClearValue = renderPassDesc.fClearStencil;
-        depthStencilAttachment.stencilLoadOp =
-                wgpuLoadActionMap[static_cast<int>(depthStencilInfo.fLoadOp)];
-        depthStencilAttachment.stencilStoreOp =
-                wgpuStoreActionMap[static_cast<int>(depthStencilInfo.fStoreOp)];
+        if (DawnFormatIsStencil(format)) {
+            depthStencilAttachment.stencilClearValue = renderPassDesc.fClearStencil;
+            depthStencilAttachment.stencilLoadOp =
+                    wgpuLoadActionMap[static_cast<int>(depthStencilInfo.fLoadOp)];
+            depthStencilAttachment.stencilStoreOp =
+                    wgpuStoreActionMap[static_cast<int>(depthStencilInfo.fStoreOp)];
+        }
 
+        wgpuRenderPass.depthStencilAttachment = &depthStencilAttachment;
     } else {
         SkASSERT(!depthStencilInfo.fTextureInfo.isValid());
     }
 
-    fActiveRenderPassEncoder = fCommandEncoder.BeginRenderPass(&wgpuRenderpass);
+    fActiveRenderPassEncoder = fCommandEncoder.BeginRenderPass(&wgpuRenderPass);
 
     if (loadMSAAFromResolve) {
         // Manually load the contents of the resolve texture into the MSAA attachment as a draw,
@@ -430,26 +439,35 @@ void DawnCommandBuffer::syncUniformBuffers() {
     if (fBoundUniformBuffersDirty) {
         fBoundUniformBuffersDirty = false;
 
-        constexpr uint32_t bindingIndices[] = {
+        constexpr std::array<uint32_t, 3> bindingIndices = {
                 DawnGraphicsPipeline::kIntrinsicUniformBufferIndex,
                 DawnGraphicsPipeline::kRenderStepUniformBufferIndex,
                 DawnGraphicsPipeline::kPaintUniformBufferIndex,
         };
-        std::array<wgpu::BindGroupEntry, std::size(bindingIndices)> entries;
+        std::vector<wgpu::BindGroupEntry> entries(1);
+        entries[0].binding = DawnGraphicsPipeline::kIntrinsicUniformBufferIndex;
+        entries[0].buffer = fConstantBuffer;
+        entries[0].offset = 0;
+        entries[0].size = WGPU_WHOLE_SIZE;
 
-        for (size_t i = 0; i < entries.size(); ++i) {
+        for (size_t i = 1; i < bindingIndices.size(); ++i) {
             auto bindingIndex = bindingIndices[i];
-            entries[i].binding = bindingIndex;
-            entries[i].buffer = fBoundUniformBuffers[bindingIndex];
-            entries[i].offset = fBoundUniformBufferOffsets[bindingIndex];
-            entries[i].size = fBoundUniformBufferRanges[bindingIndex];
+            wgpu::BindGroupEntry entry;
+            if (!fBoundUniformBuffers[bindingIndex]) {
+                // continue;
+            }
+            entry.binding = bindingIndex;
+            entry.buffer = fBoundUniformBuffers[bindingIndex];
+            entry.offset = fBoundUniformBufferOffsets[bindingIndex];
+            entry.size = WGPU_WHOLE_SIZE;
+            entries.emplace_back(entry);
         }
 
         wgpu::BindGroupDescriptor desc;
         desc.layout = fActiveGraphicsPipeline->dawnRenderPipeline().GetBindGroupLayout(
                 DawnGraphicsPipeline::kUniformBufferBindGroupIndex);
-        desc.entries = entries.data();
         desc.entryCount = entries.size();
+        desc.entries = entries.data();
 
         auto bindGroup = fSharedContext->device().CreateBindGroup(&desc);
 
@@ -532,7 +550,7 @@ void DawnCommandBuffer::drawIndexedInstanced(PrimitiveType type,
                                              unsigned int baseInstance,
                                              unsigned int instanceCount) {
     SkASSERT(fActiveRenderPassEncoder);
-    SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
+    // SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
 
     syncUniformBuffers();
 

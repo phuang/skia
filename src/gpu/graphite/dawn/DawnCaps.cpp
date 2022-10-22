@@ -195,7 +195,7 @@ void DawnCaps::initCaps(const wgpu::Device& device) {
     fMaxTextureSize = limits.limits.maxTextureDimension2D;
 
     // TODO
-    fRequiredUniformBufferAlignment = 16;
+    fRequiredUniformBufferAlignment = 256;
     fRequiredStorageBufferAlignment = fRequiredUniformBufferAlignment;
 
     // TODO
