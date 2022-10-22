@@ -334,8 +334,9 @@ void DawnCommandBuffer::addDrawPass(const DrawPass* drawPass) {
 }
 
 void DawnCommandBuffer::bindGraphicsPipeline(const GraphicsPipeline* graphicsPipeline) {
-    SkASSERT(false);
+    // SkASSERT(false);
     fActiveGraphicsPipeline = static_cast<const DawnGraphicsPipeline*>(graphicsPipeline);
+    fActiveRenderPassEncoder.SetPipeline(fActiveGraphicsPipeline->dawnRenderPipeline());
     fBoundUniformBuffersDirty = true;
 }
 
@@ -390,34 +391,35 @@ void DawnCommandBuffer::bindDrawBuffers(const BindBufferInfo& vertices,
 }
 
 void DawnCommandBuffer::bindTextureAndSamplers(const DrawPass& drawPass,
-                                const DrawPassCommands::BindTexturesAndSamplers& command) {
+                                               const DrawPassCommands::BindTexturesAndSamplers& command) {
     SkASSERT(fActiveRenderPassEncoder);
     SkASSERT(fActiveGraphicsPipeline);
 
     // TODO: optimize for single texture.
     std::vector<wgpu::BindGroupEntry> entries(2 * command.fNumTexSamplers);
 
-    for (int j = 0; j < command.fNumTexSamplers; ++j) {
-        auto texture = drawPass.getTexture(command.fTextureIndices[j]);
-        auto sampler = drawPass.getSampler(command.fSamplerIndices[j]);
-        auto& wgpuTexture = static_cast<const DawnTexture*>(texture)->dawnTextureView();
-        auto& wgpuSampler = static_cast<const DawnSampler*>(sampler)->dawnSampler();
+    for (int i = 0; i < command.fNumTexSamplers; ++i) {
+        const auto* texture = static_cast<const DawnTexture*>(drawPass.getTexture(command.fTextureIndices[i]));
+        const auto* sampler = static_cast<const DawnSampler*>(drawPass.getSampler(command.fSamplerIndices[i]));
+        auto wgpuTextureView = texture->dawnTexture() ?
+                texture->dawnTexture().CreateView() : texture->dawnTextureView();
+        auto& wgpuSampler = sampler->dawnSampler();
 
         // since shader generator assigns binding slot to sampler then texture,
         // then the next sampler and texture, and so on, we need to use
         // 2 * j as base binding index of the sampler and texture.
-        entries[2 * j].binding = 2 * j;
-        entries[2 * j].sampler = wgpuSampler;
+        entries[2 * i].binding = 2 * i;
+        entries[2 * i].sampler = wgpuSampler;
 
-        entries[2 * j + 1].binding = 2 * j + 1;
-        entries[2 * j + 1].textureView = wgpuTexture;
+        entries[2 * i + 1].binding = 2 * i + 1;
+        entries[2 * i + 1].textureView = wgpuTextureView;
     }
 
     wgpu::BindGroupDescriptor desc;
     desc.layout = fActiveGraphicsPipeline->dawnRenderPipeline().GetBindGroupLayout(
             DawnGraphicsPipeline::kTextureBindGroupIndex);
-    desc.entries = entries.data();
     desc.entryCount = entries.size();
+    desc.entries = entries.data();
 
     auto bindGroup = fSharedContext->device().CreateBindGroup(&desc);
 
