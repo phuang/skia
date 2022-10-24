@@ -55,10 +55,12 @@ wgpu::CommandBuffer DawnCommandBuffer::finishEncoding() {
 }
 
 void DawnCommandBuffer::onResetCommandBuffer() {
+    SkDebugf("EEEE %s\n", __func__);
     fActiveGraphicsPipeline = nullptr;
     fActiveRenderPassEncoder = nullptr;
     fActiveComputePassEncoder = nullptr;
     fCommandEncoder = nullptr;
+    hasTextureGroupBind = false;
 
     for (auto& bufferSlot : fBoundUniformBuffers) {
         bufferSlot = nullptr;
@@ -133,9 +135,9 @@ bool DawnCommandBuffer::onAddComputePass(const ComputePassDesc& computePassDesc,
 }
 
 bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
-                                       const Texture* colorTexture,
-                                       const Texture* resolveTexture,
-                                       const Texture* depthStencilTexture) {
+                                        const Texture* colorTexture,
+                                        const Texture* resolveTexture,
+                                        const Texture* depthStencilTexture) {
     SkDebugf("EEEE %s\n", __func__);
     SkASSERT(!fActiveRenderPassEncoder);
     SkASSERT(!fActiveComputePassEncoder);
@@ -163,6 +165,7 @@ bool DawnCommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
     // Set up color attachment.
     auto& colorInfo = renderPassDesc.fColorAttachment;
     bool loadMSAAFromResolve = false;
+    SkDebugf("EEEE %s colorTexture=%d\n", __func__, !!colorTexture);
     if (colorTexture) {
         wgpuRenderPass.colorAttachments = &colorAttachment;
         wgpuRenderPass.colorAttachmentCount = 1;
@@ -366,6 +369,7 @@ void DawnCommandBuffer::bindUniformBuffer(const BindBufferInfo& info, UniformSlo
             bufferIndex = DawnGraphicsPipeline::kRenderStepUniformBufferIndex;
             break;
         case UniformSlot::kPaint:
+            SkDebugf("EEEE kPaint %s\n", __func__);
             bufferIndex = DawnGraphicsPipeline::kPaintUniformBufferIndex;
             break;
         default:
@@ -408,6 +412,7 @@ void DawnCommandBuffer::bindDrawBuffers(const BindBufferInfo& vertices,
 
 void DawnCommandBuffer::bindTextureAndSamplers(const DrawPass& drawPass,
                                                const DrawPassCommands::BindTexturesAndSamplers& command) {
+    SkDebugf("EEEE /// %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
     SkASSERT(fActiveGraphicsPipeline);
 
@@ -440,34 +445,38 @@ void DawnCommandBuffer::bindTextureAndSamplers(const DrawPass& drawPass,
     auto bindGroup = fSharedContext->device().CreateBindGroup(&desc);
 
     fActiveRenderPassEncoder.SetBindGroup(DawnGraphicsPipeline::kTextureBindGroupIndex, bindGroup);
+    hasTextureGroupBind = true;
 }
 
 void DawnCommandBuffer::syncUniformBuffers() {
+    SkDebugf("EEEE === %s\n", __func__);
     if (fBoundUniformBuffersDirty) {
         fBoundUniformBuffersDirty = false;
 
-        constexpr std::array<uint32_t, 3> bindingIndices = {
-                DawnGraphicsPipeline::kIntrinsicUniformBufferIndex,
-                DawnGraphicsPipeline::kRenderStepUniformBufferIndex,
-                DawnGraphicsPipeline::kPaintUniformBufferIndex,
-        };
         std::vector<wgpu::BindGroupEntry> entries(1);
         entries[0].binding = DawnGraphicsPipeline::kIntrinsicUniformBufferIndex;
         entries[0].buffer = fConstantBuffer;
         entries[0].offset = 0;
         entries[0].size = WGPU_WHOLE_SIZE;
 
-        for (size_t i = 1; i < bindingIndices.size(); ++i) {
-            auto bindingIndex = bindingIndices[i];
-            wgpu::BindGroupEntry entry;
-            if (!fBoundUniformBuffers[bindingIndex]) {
-                // continue;
-            }
-            entry.binding = bindingIndex;
-            entry.buffer = fBoundUniformBuffers[bindingIndex];
-            entry.offset = fBoundUniformBufferOffsets[bindingIndex];
+        if (fActiveGraphicsPipeline->hasStepUniforms() &&
+            fBoundUniformBuffers[DawnGraphicsPipeline::kRenderStepUniformBufferIndex]) {
+            entries.push_back({});
+            auto& entry = entries.back();
+            entry.binding = DawnGraphicsPipeline::kRenderStepUniformBufferIndex;
+            entry.buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
+            entry.offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
             entry.size = WGPU_WHOLE_SIZE;
-            entries.emplace_back(entry);
+        }
+
+        if (fActiveGraphicsPipeline->hasFragment() &&
+            fBoundUniformBuffers[DawnGraphicsPipeline::kPaintUniformBufferIndex]) {
+            entries.push_back({});
+            auto& entry = entries.back();
+            entry.binding = DawnGraphicsPipeline::kPaintUniformBufferIndex;
+            entry.buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kPaintUniformBufferIndex];
+            entry.offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kPaintUniformBufferIndex];
+            entry.size = WGPU_WHOLE_SIZE;
         }
 
         wgpu::BindGroupDescriptor desc;
@@ -480,6 +489,12 @@ void DawnCommandBuffer::syncUniformBuffers() {
 
         fActiveRenderPassEncoder.SetBindGroup(DawnGraphicsPipeline::kUniformBufferBindGroupIndex,
                                               bindGroup);
+        if (!fActiveGraphicsPipeline->hasFragment()) {
+            // SkDebugf("EEEE layouts[1]=%d\n", !!fActiveGraphicsPipeline->dawnRenderPipeline().GetBindGroupLayout(
+            //     DawnGraphicsPipeline::kTextureBindGroupIndex));
+            // fActiveRenderPassEncoder.SetBindGroup(DawnGraphicsPipeline::kTextureBindGroupIndex,
+            //                                       nullptr);
+        }
     }
 }
 
@@ -560,7 +575,7 @@ void DawnCommandBuffer::drawIndexedInstanced(PrimitiveType type,
                                              unsigned int baseVertex,
                                              unsigned int baseInstance,
                                              unsigned int instanceCount) {
-    SkDebugf("EEEE %s\n", __func__);
+    SkDebugf("EEEE %s hasFragment=%d hasTextureGroupBind=%d\n", __func__, fActiveGraphicsPipeline->hasFragment(), hasTextureGroupBind);
     SkASSERT(fActiveRenderPassEncoder);
     SkASSERT(fActiveGraphicsPipeline->primitiveType() == type);
 

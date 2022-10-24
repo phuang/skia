@@ -45,6 +45,7 @@ private:
     // the GraphicsPipeline.
     uint32_t fRenderStepID;
     SkUniquePaintParamsID fPaintID;
+
 };
 
 } // namespace skgpu::graphite

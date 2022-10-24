@@ -116,21 +116,34 @@ sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
     }
 #else
     std::string vsSPIRV, fsSPIRV;
-    if (!SkSLToSPIRV(skslCompiler,
-                     GetSkSLFS(fSharedContext->shaderCodeDictionary(),
-                               runtimeDict,
-                               step,
-                               pipelineDesc.paintParamsID(),
-                               useShadingSsboIndex,
-                               &blendInfo,
-                               &localCoordsNeeded),
-                     SkSL::ProgramKind::kGraphiteFragment,
-                     settings,
-                     &fsSPIRV,
-                     &fsInputs,
-                     errorHandler)) {
-        SkASSERT(false);
-        return nullptr;
+    wgpu::ShaderModule fsModule, vsModule;
+    // Some steps just render depth buffer but not color buffer, so the fragment
+    // shader is null.
+    auto fsSKSL = GetSkSLFS(fSharedContext->shaderCodeDictionary(),
+                            runtimeDict,
+                            step,
+                            pipelineDesc.paintParamsID(),
+                            useShadingSsboIndex,
+                            &blendInfo,
+                            &localCoordsNeeded);
+    if (!fsSKSL.empty()) {
+        if (!SkSLToSPIRV(skslCompiler,
+                         fsSKSL,
+                         SkSL::ProgramKind::kGraphiteFragment,
+                         settings,
+                         &fsSPIRV,
+                         &fsInputs,
+                         errorHandler)) {
+            SkASSERT(false);
+            return nullptr;
+        }
+        fsModule = DawnCompileSPIRVShaderModule(this->dawnSharedContext(),
+                                                fsSPIRV,
+                                                errorHandler);
+        SkASSERT(fsModule);
+        if (!fsModule) {
+            return nullptr;
+        }
     }
 
     if (!SkSLToSPIRV(skslCompiler,
@@ -144,29 +157,21 @@ sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
         return nullptr;
     }
 
-    SkDebugf("EEEEE compile vsmodule\n");
-    auto vsModule = DawnCompileSPIRVShaderModule(this->dawnSharedContext(), vsSPIRV, errorHandler);
+    vsModule = DawnCompileSPIRVShaderModule(this->dawnSharedContext(), vsSPIRV, errorHandler);
+    SkASSERT(vsModule);
     if (!vsModule) {
-        SkASSERT(false);
-        return nullptr;
-    }
-
-    SkDebugf("EEEEE compile fsmodule\n");
-    auto fsModule = DawnCompileSPIRVShaderModule(this->dawnSharedContext(), fsSPIRV, errorHandler);
-    SkDebugf("EEEEE compile fsmodule done fsModule=%d\n", !!fsModule);
-    if (!fsModule) {
-        SkASSERT(false);
         return nullptr;
     }
 #endif
 
     return DawnGraphicsPipeline::Make(this->dawnSharedContext(),
                                       step->name(),
-                                      {std::move(vsModule), "main"},
+                                      std::move(vsModule),
+                                      step->uniforms(),
                                       step->vertexAttributes(),
                                       step->instanceAttributes(),
                                       step->primitiveType(),
-                                      {std::move(fsModule), "main"},
+                                      std::move(fsModule),
                                       step->depthStencilSettings(),
                                       blendInfo,
                                       renderPassDesc);

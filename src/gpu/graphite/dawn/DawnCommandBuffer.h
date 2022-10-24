@@ -134,6 +134,7 @@ private:
     const DawnGraphicsPipeline* fActiveGraphicsPipeline = nullptr;
     [[maybe_unused]] const DawnSharedContext* fSharedContext;
     [[maybe_unused]] DawnResourceProvider* fResourceProvider;
+    bool hasTextureGroupBind = false;
 };
 
 } // namespace skgpu::graphite

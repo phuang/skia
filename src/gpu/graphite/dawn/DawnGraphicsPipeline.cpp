@@ -207,19 +207,23 @@ static wgpu::BlendOperation blend_equation_to_dawn_blend_op(skgpu::BlendEquation
 
 sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* sharedContext,
                                                        std::string label,
-                                                       SPIRVFunction vertexMain,
+                                                       wgpu::ShaderModule vsModule,
+                                                       SkSpan<const SkUniform> uniforms,
                                                        SkSpan<const Attribute> vertexAttrs,
                                                        SkSpan<const Attribute> instanceAttrs,
                                                        PrimitiveType primitiveType,
-                                                       SPIRVFunction fragmentMain,
+                                                       wgpu::ShaderModule fsModule,
                                                        const DepthStencilSettings& depthStencilSettings,
                                                        const BlendInfo& blendInfo,
                                                        const RenderPassDesc& renderPassDesc) {
-    auto vsModule = std::move(std::get<0>(vertexMain));
-    auto fsModule = std::move(std::get<0>(fragmentMain));
-    if (!vsModule || !fsModule) {
+    if (!vsModule) {
         return {};
     }
+
+    const auto& device = sharedContext->device();
+
+    bool hasFragment = !!fsModule;
+    wgpu::RenderPipelineDescriptor descriptor;
 
     // Fragment state
     skgpu::BlendEquation equation = blendInfo.fEquation;
@@ -240,14 +244,31 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     wgpu::ColorTargetState colorTarget;
     colorTarget.format = renderPassDesc.fColorAttachment.fTextureInfo.dawnTextureSpec().fFormat;
     colorTarget.blend = blendOn ? &blend : nullptr;
-    colorTarget.writeMask = blendInfo.fWritesColor ? wgpu::ColorWriteMask::All
-                                                   : wgpu::ColorWriteMask::None;
+    colorTarget.writeMask = blendInfo.fWritesColor && hasFragment ? wgpu::ColorWriteMask::All
+                                                                  : wgpu::ColorWriteMask::None;
 
     wgpu::FragmentState fragment;
-    fragment.module = std::move(fsModule);
-    fragment.entryPoint = std::get<1>(fragmentMain).c_str();
+    if (hasFragment) {
+        fragment.module = std::move(fsModule);
+    } else {
+        static wgpu::ShaderModule sFsModule;
+        if (!sFsModule) {
+            wgpu::ShaderModuleWGSLDescriptor wgslDesc;
+            wgslDesc.source = R"(
+                @fragment
+                fn main() {}
+            )";
+            wgpu::ShaderModuleDescriptor smDesc;
+            smDesc.nextInChain = &wgslDesc;
+            sFsModule = device.CreateShaderModule(&smDesc);
+            SkASSERT(sFsModule);
+        }
+        fragment.module = sFsModule;
+    }
+    fragment.entryPoint = "main";
     fragment.targetCount = 1;
     fragment.targets = &colorTarget;
+    descriptor.fragment = &fragment;
 
     // Depth stencil state
     SkASSERT(depthStencilSettings.fDepthTestEnabled ||
@@ -269,13 +290,8 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     // depthStencil.depthBias = 0;
     // depthStencil.depthBiasSlopeScale = 0.0f;
     // depthStencil.depthBiasClamp = 0.0f;
-
-    wgpu::RenderPipelineDescriptor descriptor;
-
     descriptor.depthStencil = &depthStencil;
-    descriptor.fragment = &fragment;
 
-    const auto& device = sharedContext->device();
     // Pipeline Layout
     // Pipeline can be created with layout = null
     {
@@ -287,22 +303,24 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
             entries[0].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
             entries[0].buffer.type = wgpu::BufferBindingType::Uniform;
             entries[0].buffer.hasDynamicOffset = false;
-            entries[0].buffer.minBindingSize = WGPU_WHOLE_SIZE;
+            entries[0].buffer.minBindingSize = 0;
 
             entries[1].binding = kRenderStepUniformBufferIndex;
             entries[1].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
             entries[1].buffer.type = wgpu::BufferBindingType::Uniform;
             entries[1].buffer.hasDynamicOffset = false;
-            entries[1].buffer.minBindingSize = WGPU_WHOLE_SIZE;
+            entries[1].buffer.minBindingSize = 0;
 
-            entries[2].binding = kPaintUniformBufferIndex;
-            entries[2].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
-            entries[2].buffer.type = wgpu::BufferBindingType::Uniform;
-            entries[2].buffer.hasDynamicOffset = false;
-            entries[2].buffer.minBindingSize = WGPU_WHOLE_SIZE;
+            if (hasFragment) {
+                entries[2].binding = kPaintUniformBufferIndex;
+                entries[2].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+                entries[2].buffer.type = wgpu::BufferBindingType::Uniform;
+                entries[2].buffer.hasDynamicOffset = false;
+                entries[2].buffer.minBindingSize = 0;
+            }
 
             wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
-            groupLayoutDesc.entryCount = entries.size();
+            groupLayoutDesc.entryCount = hasFragment ? entries.size(): entries.size() - 1;
             groupLayoutDesc.entries = entries.data();
             groupLayouts[0] = device.CreateBindGroupLayout(&groupLayoutDesc);
             if (!groupLayouts[0]) {
@@ -311,7 +329,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
             }
         }
 
-        {
+        if (hasFragment) {
             std::array<wgpu::BindGroupLayoutEntry, 2> entries;
             // Fragment stage
             // We need sampler and texture info here.
@@ -338,7 +356,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
         }
 
         wgpu::PipelineLayoutDescriptor layoutDesc;
-        layoutDesc.bindGroupLayoutCount = groupLayouts.size();
+        layoutDesc.bindGroupLayoutCount = hasFragment ? groupLayouts.size() : groupLayouts.size() - 1;
         layoutDesc.bindGroupLayouts = groupLayouts.data();
         auto layout = device.CreatePipelineLayout(&layoutDesc);
         if (!layout) {
@@ -380,7 +398,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
 
     auto& vertex = descriptor.vertex;
     vertex.module = std::move(vsModule);
-    vertex.entryPoint = std::get<1>(vertexMain).c_str();
+    vertex.entryPoint = "main";
     vertex.constantCount = 0;
     vertex.constants = nullptr;
     vertex.bufferCount = vertexBufferLayouts.size();
@@ -417,7 +435,9 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
     return sk_sp<DawnGraphicsPipeline>(new DawnGraphicsPipeline(sharedContext,
                                                                 std::move(pipeline),
                                                                 primitiveType,
-                                                                depthStencilSettings.fStencilReferenceValue));
+                                                                depthStencilSettings.fStencilReferenceValue,
+                                                                !uniforms.empty(),
+                                                                hasFragment));
 }
 
 void DawnGraphicsPipeline::freeGpuData() {

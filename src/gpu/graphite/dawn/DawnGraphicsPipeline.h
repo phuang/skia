@@ -17,6 +17,8 @@
 
 #include "webgpu/webgpu_cpp.h"
 
+class SkUniform;
+
 namespace skgpu {
 struct BlendInfo;
 }
@@ -45,14 +47,14 @@ public:
     inline static constexpr unsigned int kInstanceBufferIndex = 1;
     inline static constexpr unsigned int kNumVertexBuffers = 2;
 
-    using SPIRVFunction = std::pair<wgpu::ShaderModule, std::string>;
     static sk_sp<DawnGraphicsPipeline> Make(const DawnSharedContext*,
                                            std::string label,
-                                           SPIRVFunction vertexMain,
+                                           wgpu::ShaderModule vsModule,
+                                           SkSpan<const SkUniform> uniforms,
                                            SkSpan<const Attribute> vertexAttrs,
                                            SkSpan<const Attribute> instanceAttrs,
                                            PrimitiveType primitiveType,
-                                           SPIRVFunction fragmentMain,
+                                           wgpu::ShaderModule fsModule,
                                            const DepthStencilSettings& depthStencilSettings,
                                            const BlendInfo& blendInfo,
                                            const RenderPassDesc&);
@@ -61,22 +63,30 @@ public:
 
     uint32_t stencilReferenceValue() const { return fStencilReferenceValue; }
     PrimitiveType primitiveType() const { return fPrimitiveType; }
+    bool hasStepUniforms() const { return fHasStepUniforms; }
+    bool hasFragment() const { return fHasFragment; }
     const wgpu::RenderPipeline& dawnRenderPipeline() const { return fRenderPipeline; }
 private:
     DawnGraphicsPipeline(const skgpu::graphite::SharedContext* sharedContext,
                          wgpu::RenderPipeline renderPipeline,
                          PrimitiveType primitiveType,
-                         uint32_t refValue)
+                         uint32_t refValue,
+                         bool hasStepUniforms,
+                         bool hasFragment)
         : GraphicsPipeline(sharedContext)
         , fRenderPipeline(std::move(renderPipeline))
         , fPrimitiveType(primitiveType)
-        , fStencilReferenceValue(refValue) {}
+        , fStencilReferenceValue(refValue)
+        , fHasStepUniforms(hasStepUniforms)
+        , fHasFragment(hasFragment) {}
 
     void freeGpuData() override;
 
     wgpu::RenderPipeline fRenderPipeline;
     const PrimitiveType fPrimitiveType;
     const uint32_t fStencilReferenceValue;
+    const bool fHasStepUniforms;
+    const bool fHasFragment;
 };
 
 } // namespace skgpu::graphite
