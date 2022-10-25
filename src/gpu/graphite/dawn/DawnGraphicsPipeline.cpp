@@ -372,29 +372,41 @@ fn main() {}
     // Vertex buffer layout
     std::vector<wgpu::VertexAttribute> vertexAttributes;
     {
-        // slot 0 is for vertex buffer
-        // wgpu::RenderBundleEncoder::SetVertexBuffer(slot, buffer, offset, size)
-        auto& layout = vertexBufferLayouts[0];
-        layout.arrayStride = create_vertex_attributes(vertexAttrs,
-                                                      0,
-                                                      &vertexAttributes);
-        layout.stepMode = wgpu::VertexStepMode::Vertex;
-        layout.attributeCount = vertexAttributes.size();
-        layout.attributes = vertexAttributes.data();
+        auto arrayStride = create_vertex_attributes(vertexAttrs,
+                                                    0,
+                                                    &vertexAttributes);
+        auto& layout = vertexBufferLayouts[kVertexBufferIndex];
+        if (arrayStride) {
+            layout.arrayStride = arrayStride;
+            layout.stepMode = wgpu::VertexStepMode::Vertex;
+            layout.attributeCount = vertexAttributes.size();
+            layout.attributes = vertexAttributes.data();
+        } else {
+            layout.arrayStride = 0;
+            layout.stepMode = wgpu::VertexStepMode::VertexBufferNotUsed;
+            layout.attributeCount = 0;
+            layout.attributes = nullptr;
+        }
     }
 
     // Instance buffer layout
     std::vector<wgpu::VertexAttribute> instanceAttributes;
     {
-        // slot 1 is for instanced vertex buffer
-        // wgpu::RenderBundleEncoder::SetVertexBuffer(slot, buffer, offset, size)
-        auto& layout = vertexBufferLayouts[1];
-        layout.arrayStride = create_vertex_attributes(instanceAttrs,
-                                                      vertexAttrs.size(),
-                                                      &instanceAttributes);
-        layout.stepMode = wgpu::VertexStepMode::Instance;
-        layout.attributeCount = instanceAttributes.size();
-        layout.attributes = instanceAttributes.data();
+        auto arrayStride = create_vertex_attributes(instanceAttrs,
+                                                    vertexAttrs.size(),
+                                                    &instanceAttributes);
+        auto& layout = vertexBufferLayouts[kInstanceBufferIndex];
+        if (arrayStride) {
+            layout.arrayStride = arrayStride;
+            layout.stepMode = wgpu::VertexStepMode::Instance;
+            layout.attributeCount = instanceAttributes.size();
+            layout.attributes = instanceAttributes.data();
+        } else {
+            layout.arrayStride = 0;
+            layout.stepMode = wgpu::VertexStepMode::VertexBufferNotUsed;
+            layout.attributeCount = 0;
+            layout.attributes = nullptr;
+        }
     }
 
     auto& vertex = descriptor.vertex;

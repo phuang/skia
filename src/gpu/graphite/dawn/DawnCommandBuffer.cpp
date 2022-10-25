@@ -369,7 +369,6 @@ void DawnCommandBuffer::bindUniformBuffer(const BindBufferInfo& info, UniformSlo
             bufferIndex = DawnGraphicsPipeline::kRenderStepUniformBufferIndex;
             break;
         case UniformSlot::kPaint:
-            SkDebugf("EEEE kPaint %s\n", __func__);
             bufferIndex = DawnGraphicsPipeline::kPaintUniformBufferIndex;
             break;
         default:
@@ -390,7 +389,8 @@ void DawnCommandBuffer::bindUniformBuffer(const BindBufferInfo& info, UniformSlo
 void DawnCommandBuffer::bindDrawBuffers(const BindBufferInfo& vertices,
                                         const BindBufferInfo& instances,
                                         const BindBufferInfo& indices) {
-    SkDebugf("EEEE %s\n", __func__);
+    SkDebugf("EEEE %s vertices=%d instances=%d indices%d\n",
+            __func__, !!vertices.fBuffer, !!instances.fBuffer, !!indices.fBuffer);
     SkASSERT(fActiveRenderPassEncoder);
 
     if (vertices.fBuffer) {
@@ -412,7 +412,6 @@ void DawnCommandBuffer::bindDrawBuffers(const BindBufferInfo& vertices,
 
 void DawnCommandBuffer::bindTextureAndSamplers(const DrawPass& drawPass,
                                                const DrawPassCommands::BindTexturesAndSamplers& command) {
-    SkDebugf("EEEE /// %s\n", __func__);
     SkASSERT(fActiveRenderPassEncoder);
     SkASSERT(fActiveGraphicsPipeline);
 
@@ -449,7 +448,6 @@ void DawnCommandBuffer::bindTextureAndSamplers(const DrawPass& drawPass,
 }
 
 void DawnCommandBuffer::syncUniformBuffers() {
-    SkDebugf("EEEE === %s\n", __func__);
     if (fBoundUniformBuffersDirty) {
         fBoundUniformBuffersDirty = false;
 
