@@ -174,7 +174,7 @@ $pure half4 $cubic_filter_image(float2 pos,
         for (int x = 0; x < 4; ++x) {
             // rowColor += wx[x] * sample(makeSampler2D(t, s), pos + float2(x, y));  // but this
                                                                                      // works?
-            rowColor += wx[x] * $sample_image(float2(1), // pos + float2(x, y) results in
+            rowColor += wx[x] * $sample_image(pos + float2(x, y),// results in
                                                          // non-uniform control flow because it
                                                          // depends on sk_FragCoord. SPIR-V it
                                                          // thinks it's a private variable. Why is that
