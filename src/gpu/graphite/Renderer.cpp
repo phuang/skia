@@ -24,7 +24,8 @@ RenderStep::RenderStep(std::string_view className,
                DepthStencilSettings depthStencilSettings,
                SkSpan<const Attribute> vertexAttrs,
                SkSpan<const Attribute> instanceAttrs,
-               SkSpan<const Varying> varyings)
+               SkSpan<const Varying> varyings,
+               size_t numTextures)
         : fUniqueID(next_id())
         , fFlags(flags)
         , fPrimitiveType(primitiveType)
@@ -33,6 +34,7 @@ RenderStep::RenderStep(std::string_view className,
         , fVertexAttrs(vertexAttrs.begin(), vertexAttrs.end())
         , fInstanceAttrs(instanceAttrs.begin(), instanceAttrs.end())
         , fVaryings(varyings.begin(), varyings.end())
+        , fNumTextures(numTextures)
         , fVertexStride(0)
         , fInstanceStride(0)
         , fName(className) {

@@ -120,6 +120,7 @@ public:
     size_t numUniforms()           const { return fUniforms.size();      }
     size_t numVertexAttributes()   const { return fVertexAttrs.size();   }
     size_t numInstanceAttributes() const { return fInstanceAttrs.size(); }
+    size_t numTextures()           const { return fNumTextures;          }
 
     static const char* ssboIndex() { return "ssboIndex"; }
 
@@ -168,7 +169,8 @@ protected:
                DepthStencilSettings depthStencilSettings,
                SkSpan<const Attribute> vertexAttrs,
                SkSpan<const Attribute> instanceAttrs,
-               SkSpan<const Varying> varyings = {});
+               SkSpan<const Varying> varyings = {},
+               size_t numTextures = 1);
 
 private:
     friend class Renderer; // for Flags
@@ -193,6 +195,8 @@ private:
     std::vector<Attribute> fVertexAttrs;
     std::vector<Attribute> fInstanceAttrs;
     std::vector<Varying>   fVaryings;
+    const size_t           fNumTextures;
+
 
     size_t fVertexStride;   // derived from vertex attribute set
     size_t fInstanceStride; // derived from instance attribute set

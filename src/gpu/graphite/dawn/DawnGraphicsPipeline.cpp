@@ -209,6 +209,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
                                                        std::string label,
                                                        wgpu::ShaderModule vsModule,
                                                        SkSpan<const SkUniform> uniforms,
+                                                       size_t numTextures,
                                                        SkSpan<const Attribute> vertexAttrs,
                                                        SkSpan<const Attribute> instanceAttrs,
                                                        PrimitiveType primitiveType,
@@ -224,6 +225,7 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
 
     bool hasFragment = !!fsModule;
     wgpu::RenderPipelineDescriptor descriptor;
+    descriptor.label = label.c_str();
 
     // Fragment state
     skgpu::BlendEquation equation = blendInfo.fEquation;
@@ -293,13 +295,14 @@ fn main() {}
     // depthStencil.depthBiasClamp = 0.0f;
     descriptor.depthStencil = &depthStencil;
 
+    // TODO: Using explicit layout
+#if 0
     // Pipeline Layout
     // Pipeline can be created with layout = null
     {
         std::array<wgpu::BindGroupLayout, 2> groupLayouts;
         {
             std::array<wgpu::BindGroupLayoutEntry, 3> entries;
-            // Vertex stage
             entries[0].binding = kIntrinsicUniformBufferIndex;
             entries[0].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
             entries[0].buffer.type = wgpu::BufferBindingType::Uniform;
@@ -307,21 +310,21 @@ fn main() {}
             entries[0].buffer.minBindingSize = 0;
 
             entries[1].binding = kRenderStepUniformBufferIndex;
-            entries[1].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+            entries[1].visibility = uniforms.size() ? wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment
+                                                    : wgpu::ShaderStage::None;
             entries[1].buffer.type = wgpu::BufferBindingType::Uniform;
             entries[1].buffer.hasDynamicOffset = false;
             entries[1].buffer.minBindingSize = 0;
 
-            if (hasFragment) {
-                entries[2].binding = kPaintUniformBufferIndex;
-                entries[2].visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
-                entries[2].buffer.type = wgpu::BufferBindingType::Uniform;
-                entries[2].buffer.hasDynamicOffset = false;
-                entries[2].buffer.minBindingSize = 0;
-            }
+            entries[2].binding = kPaintUniformBufferIndex;
+            entries[2].visibility = hasFragment ? wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment
+                                                : wgpu::ShaderStage::None;
+            entries[2].buffer.type = wgpu::BufferBindingType::Uniform;
+            entries[2].buffer.hasDynamicOffset = false;
+            entries[2].buffer.minBindingSize = 0;
 
             wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
-            groupLayoutDesc.entryCount = hasFragment ? entries.size(): entries.size() - 1;
+            groupLayoutDesc.entryCount = entries.size();
             groupLayoutDesc.entries = entries.data();
             groupLayouts[0] = device.CreateBindGroupLayout(&groupLayoutDesc);
             if (!groupLayouts[0]) {
@@ -331,20 +334,19 @@ fn main() {}
         }
 
         if (hasFragment) {
-            std::array<wgpu::BindGroupLayoutEntry, 2> entries;
-            // Fragment stage
-            // We need sampler and texture info here.
-            // TODO:
-            entries[0].binding = 0;
-            entries[0].visibility = wgpu::ShaderStage::Fragment;
-            entries[0].sampler.type = wgpu::SamplerBindingType::Filtering;
-
-            // TODO:
-            entries[1].binding = 1;
-            entries[1].visibility = wgpu::ShaderStage::Fragment;
-            entries[1].texture.sampleType = wgpu::TextureSampleType::Float;
-            entries[1].texture.viewDimension = wgpu::TextureViewDimension::e2D;
-            entries[1].texture.multisampled = false;
+            std::vector<wgpu::BindGroupLayoutEntry> entries(numTextures * 2);
+            for (size_t i = 0; i < numTextures * 2;) {
+                entries[i].binding = i;
+                entries[i].visibility = wgpu::ShaderStage::Fragment;
+                entries[i].sampler.type = wgpu::SamplerBindingType::Filtering;
+                ++i;
+                entries[i].binding = i;
+                entries[i].visibility = wgpu::ShaderStage::Fragment;
+                entries[i].texture.sampleType = wgpu::TextureSampleType::Float;
+                entries[i].texture.viewDimension = wgpu::TextureViewDimension::e2D;
+                entries[i].texture.multisampled = false;
+                ++i;
+            }
 
             wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
             groupLayoutDesc.entryCount = entries.size();
@@ -364,8 +366,9 @@ fn main() {}
             SkASSERT(false);
             return {};
         }
-        // descriptor.layout = std::move(layout);
+        descriptor.layout = std::move(layout);
     }
+    #endif
 
     // Vertex state
     std::array<wgpu::VertexBufferLayout, kNumVertexBuffers> vertexBufferLayouts;

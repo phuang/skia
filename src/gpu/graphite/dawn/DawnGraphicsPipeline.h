@@ -51,6 +51,7 @@ public:
                                            std::string label,
                                            wgpu::ShaderModule vsModule,
                                            SkSpan<const SkUniform> uniforms,
+                                           size_t numTextures,
                                            SkSpan<const Attribute> vertexAttrs,
                                            SkSpan<const Attribute> instanceAttrs,
                                            PrimitiveType primitiveType,

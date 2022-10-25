@@ -49,7 +49,8 @@ BitmapTextRenderStep::BitmapTextRenderStep()
                      /*varyings=*/
                      {{"textureCoords", SkSLType::kFloat2},
                       {"texIndex", SkSLType::kHalf},
-                      {"maskFormat", SkSLType::kHalf}}) {}
+                      {"maskFormat", SkSLType::kHalf}},
+                      /*numTextures=*/4) {}
 
 BitmapTextRenderStep::~BitmapTextRenderStep() {}
 

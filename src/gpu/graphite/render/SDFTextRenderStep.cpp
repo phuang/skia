@@ -48,7 +48,8 @@ SDFTextRenderStep::SDFTextRenderStep(bool isA8)
                      /*varyings=*/
                      {{"unormTexCoords", SkSLType::kFloat2},
                       {"textureCoords", SkSLType::kFloat2},
-                      {"texIndex", SkSLType::kFloat}}) {
+                      {"texIndex", SkSLType::kFloat}},
+                      /*numTextures=*/4) {
     // TODO: store if it's A8 and adjust shader
 }
 
@@ -75,8 +76,9 @@ std::string SDFTextRenderStep::texturesAndSamplersSkSL(int binding) const {
 
     for (unsigned int i = 0; i < kNumSDFAtlasTextures; ++i) {
         SkSL::String::appendf(&result,
-                              "layout(binding=%d) uniform sampler2D sdf_atlas_%d;\n", binding, i);
-        binding++;
+                              "layout(binding=%d) uniform sampler2D samp_sdf_atlas_%d;\n", ++binding, i);
+        SkSL::String::appendf(&result,
+                              "layout(binding=%d) uniform sampler2D text_sdf_atlas_%d;\n", ++binding, i);
     }
 
     return result;
@@ -91,15 +93,15 @@ const char* SDFTextRenderStep::fragmentCoverageSkSL() const {
     return R"(
         half texColor;
         if (texIndex == 0) {
-           texColor = sample(sdf_atlas_0, textureCoords).r;
+           texColor = sample(makeSampler2D(text_sdf_atlas_0, samp_sdf_atlas_0), textureCoords).r;
         } else if (texIndex == 1) {
-           texColor = sample(sdf_atlas_1, textureCoords).r;
+           texColor = sample(makeSampler2D(text_sdf_atlas_1, samp_sdf_atlas_1), textureCoords).r;
         } else if (texIndex == 2) {
-           texColor = sample(sdf_atlas_2, textureCoords).r;
+           texColor = sample(makeSampler2D(text_sdf_atlas_2, samp_sdf_atlas_2), textureCoords).r;
         } else if (texIndex == 3) {
-           texColor = sample(sdf_atlas_3, textureCoords).r;
+           texColor = sample(makeSampler2D(text_sdf_atlas_3, samp_sdf_atlas_3), textureCoords).r;
         } else {
-           texColor = sample(sdf_atlas_0, textureCoords).r;
+           texColor = sample(makeSampler2D(text_sdf_atlas_0, samp_sdf_atlas_0), textureCoords).r;
         }
         // The distance field is constructed as uchar8_t values, so that the zero value is at 128,
         // and the supported range of distances is [-4 * 127/128, 4].

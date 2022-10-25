@@ -168,6 +168,7 @@ sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
                                       step->name(),
                                       std::move(vsModule),
                                       step->uniforms(),
+                                      step->numTextures(),
                                       step->vertexAttributes(),
                                       step->instanceAttributes(),
                                       step->primitiveType(),
