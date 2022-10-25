@@ -26,9 +26,10 @@ using IntrinsicConstant = float[4];
 }
 
 std::unique_ptr<DawnCommandBuffer> DawnCommandBuffer::Make(const DawnSharedContext* sharedContext,
+                                                           DawnQueueManager* cmdQueue,
                                                            DawnResourceProvider* resourceProvider) {
     std::unique_ptr<DawnCommandBuffer> cmdBuffer(
-            new DawnCommandBuffer(sharedContext, resourceProvider));
+            new DawnCommandBuffer(sharedContext, cmdQueue, resourceProvider));
     if (!cmdBuffer->setNewCommandBufferResources()) {
         return {};
     }
@@ -36,9 +37,11 @@ std::unique_ptr<DawnCommandBuffer> DawnCommandBuffer::Make(const DawnSharedConte
 }
 
 DawnCommandBuffer::DawnCommandBuffer(const DawnSharedContext* sharedContext,
+                                     DawnQueueManager* cmdQueue,
                                      DawnResourceProvider* resourceProvider)
         : fConstantStagingBufferPool(sizeof(IntrinsicConstant))
         , fSharedContext(sharedContext)
+        , fCmdQueue(cmdQueue)
         , fResourceProvider(resourceProvider) {}
 
 DawnCommandBuffer::~DawnCommandBuffer() {}
@@ -515,8 +518,8 @@ void DawnCommandBuffer::preprocessViewport(const DrawPassCommands::SetViewport& 
     const float invTwoH = 2.f / viewportCommand.fViewport.height();
     const IntrinsicConstant rtAdjust = {invTwoW, -invTwoH, -1.f - x * invTwoW, 1.f + y * invTwoH};
 
-    fCommandEncoder.WriteBuffer(fConstantBuffer, 0, reinterpret_cast<const uint8_t*>(rtAdjust), sizeof(IntrinsicConstant));
-    // fConstantStagingBufferPool.writeBuffer(fSharedContext->device(), fCommandEncoder, fConstantBuffer, &rtAdjust);
+    fConstantStagingBufferPool.writeBuffer(
+            fSharedContext->device(), fCmdQueue, fCommandEncoder, fConstantBuffer, &rtAdjust);
 }
 
 void DawnCommandBuffer::setViewport(float x, float y, float width, float height,

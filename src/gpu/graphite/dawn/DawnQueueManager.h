@@ -22,6 +22,9 @@ class DawnQueueManager : public QueueManager {
 public:
     DawnQueueManager(const DawnBackendContext&, const SharedContext*);
     ~DawnQueueManager() override {}
+
+    using SubmitCallback = void (*)(void*);
+    void registerNextWorkSubmitCallback(SubmitCallback callback, void* userdata);
 private:
     const DawnSharedContext* dawnSharedContext() const;
 
@@ -34,6 +37,8 @@ private:
 #endif
 
     wgpu::Queue fQueue;
+
+    std::vector<std::pair<void*, SubmitCallback>> fNextSubmitUserCallbacks;
 };
 
 } // namespace skgpu::graphite

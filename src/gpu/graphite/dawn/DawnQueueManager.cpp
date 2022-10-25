@@ -24,9 +24,10 @@ const DawnSharedContext* DawnQueueManager::dawnSharedContext() const {
     return static_cast<const DawnSharedContext*>(fSharedContext);
 }
 
-std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(ResourceProvider* resourceProvider) {
-    return DawnCommandBuffer::Make(dawnSharedContext(),
-                                   static_cast<DawnResourceProvider*>(resourceProvider));
+std::unique_ptr<CommandBuffer> DawnQueueManager::getNewCommandBuffer(
+        ResourceProvider* resourceProvider) {
+    return DawnCommandBuffer::Make(
+            dawnSharedContext(), this, static_cast<DawnResourceProvider*>(resourceProvider));
 }
 
 class DawnWorkSubmission final : public GpuWorkSubmission {
@@ -78,7 +79,18 @@ QueueManager::OutstandingSubmission DawnQueueManager::onSubmitToGpu() {
             },
             &submission->fFinished);
 
+    // Invoke user registered callbacks
+    for (auto& entry : fNextSubmitUserCallbacks) {
+        entry.second(entry.first);
+    }
+
+    fNextSubmitUserCallbacks.resize(0);
+
     return submission;
+}
+
+void DawnQueueManager::registerNextWorkSubmitCallback(SubmitCallback callback, void* userdata) {
+    fNextSubmitUserCallbacks.emplace_back(userdata, callback);
 }
 
 #if GRAPHITE_TEST_UTILS

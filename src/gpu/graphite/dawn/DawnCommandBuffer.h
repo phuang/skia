@@ -26,6 +26,7 @@ class DawnSharedContext;
 class DawnCommandBuffer final : public CommandBuffer {
 public:
     static std::unique_ptr<DawnCommandBuffer> Make(const DawnSharedContext*,
+                                                   DawnQueueManager*,
                                                    DawnResourceProvider*);
     ~DawnCommandBuffer() override;
 
@@ -44,6 +45,7 @@ public:
 
 private:
     DawnCommandBuffer(const DawnSharedContext* sharedContext,
+                      DawnQueueManager* cmdQueue,
                       DawnResourceProvider* resourceProvider);
 
     void onResetCommandBuffer() override;
@@ -133,6 +135,7 @@ private:
     DawnStagingBufferPool fConstantStagingBufferPool;
     const DawnGraphicsPipeline* fActiveGraphicsPipeline = nullptr;
     [[maybe_unused]] const DawnSharedContext* fSharedContext;
+    [[maybe_unused]] DawnQueueManager* fCmdQueue;
     [[maybe_unused]] DawnResourceProvider* fResourceProvider;
     bool hasTextureGroupBind = false;
 };

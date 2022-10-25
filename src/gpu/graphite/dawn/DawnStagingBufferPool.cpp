@@ -8,11 +8,13 @@
 #include "src/gpu/graphite/dawn/DawnStagingBufferPool.h"
 
 #include "include/core/SkTypes.h"
+#include "src/gpu/graphite/dawn/DawnQueueManager.h"
 
 namespace skgpu::graphite {
 DawnStagingBufferPool::DawnStagingBufferPool(size_t size) : fBufferSize(size) {}
 
 void DawnStagingBufferPool::writeBuffer(const wgpu::Device& device,
+                                        DawnQueueManager* cmdQueue,
                                         const wgpu::CommandEncoder& cmdEncoder,
                                         const wgpu::Buffer& bufferToUpdate,
                                         const void* data) {
@@ -45,15 +47,23 @@ void DawnStagingBufferPool::writeBuffer(const wgpu::Device& device,
 
     cmdEncoder.CopyBufferToBuffer(bufferRecord->fBuffer, 0, bufferToUpdate, 0, fBufferSize);
 
-    bufferRecord->fBuffer.MapAsync(
-            wgpu::MapMode::Write,
-            0,
-            fBufferSize,
-            [](WGPUBufferMapAsyncStatus status, void* userData) {
-                SkASSERT(status == WGPUBufferMapAsyncStatus_Success);
+    // delay the next buffer's mapping until the command buffer is submitted
+    cmdQueue->registerNextWorkSubmitCallback(
+            [](void* userData) {
                 auto bufferRecordPtr = static_cast<StagingBufferRecord*>(userData);
-                bufferRecordPtr->fOwner->fFreeBuffers.push_back(bufferRecordPtr);
+                bufferRecordPtr->fBuffer.MapAsync(
+                        wgpu::MapMode::Write,
+                        0,
+                        WGPU_WHOLE_MAP_SIZE,
+                        [](WGPUBufferMapAsyncStatus status, void* userData) {
+                            SkASSERT(status == WGPUBufferMapAsyncStatus_Success);
+                            auto innerBufferRecordPtr = static_cast<StagingBufferRecord*>(userData);
+                            innerBufferRecordPtr->fOwner->fFreeBuffers.push_back(
+                                    innerBufferRecordPtr);
+                        },
+                        /*userdata=*/bufferRecordPtr);
             },
-            bufferRecord);
+            /*userdata=*/bufferRecord);
 }
+
 }  // namespace skgpu::graphite
