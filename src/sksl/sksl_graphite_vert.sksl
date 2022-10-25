@@ -124,7 +124,7 @@ $pure float2 tessellate_filled_curve(float2x2 vectorXform,
                                      float resolveLevel, float idxInResolveLevel,
                                      float4 p01, float4 p23) {
     float2 localcoord;
-    if (isinf(p23.z)) {
+    if (p23.z > 1e20) {
         // This patch is an exact triangle.
         localcoord = (resolveLevel != 0)      ? p01.zw
                    : (idxInResolveLevel != 0) ? p23.xy
@@ -133,7 +133,7 @@ $pure float2 tessellate_filled_curve(float2x2 vectorXform,
         float2 p0=p01.xy, p1=p01.zw, p2=p23.xy, p3=p23.zw;
         float w = -1;  // w < 0 tells us to treat the instance as an integral cubic.
         float maxResolveLevel;
-        if (isinf(p23.w)) {
+        if (p23.w > 1e20) {
             // Conics are 3 points, with the weight in p3.
             w = p3.x;
             maxResolveLevel = $wangs_formula_conic_log2(vectorXform*p0,
@@ -191,7 +191,7 @@ $pure float4 tessellate_stroked_curve(float edgeID, float maxEdges,
                                       float2 strokeParams) {
     float2 p0=p01.xy, p1=p01.zw, p2=p23.xy, p3=p23.zw;
     float w = -1;  // w<0 means the curve is an integral cubic.
-    if (isinf(p23.w)) {
+    if (p23.w > 1e20) {
         // Conics are 3 points, with the weight in p3.
         w = p3.x;
         p3 = p2;  // Setting p3 equal to p2 works for the remaining rotational logic.
