@@ -254,10 +254,11 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
         static wgpu::ShaderModule sFsModule;
         if (!sFsModule) {
             wgpu::ShaderModuleWGSLDescriptor wgslDesc;
-            wgslDesc.source = R"(
-                @fragment
-                fn main() {}
-            )";
+            wgslDesc.source =
+R"(
+@fragment
+fn main() {}
+)";
             wgpu::ShaderModuleDescriptor smDesc;
             smDesc.nextInChain = &wgslDesc;
             sFsModule = device.CreateShaderModule(&smDesc);

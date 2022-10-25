@@ -75,8 +75,9 @@ std::string BitmapTextRenderStep::texturesAndSamplersSkSL(int binding) const {
 
     for (unsigned int i = 0; i < kNumTextAtlasTextures; ++i) {
         SkSL::String::appendf(&result,
-                              "layout(binding=%d) uniform sampler2D text_atlas_%d;\n", binding, i);
-        binding++;
+                              "layout(set=1, binding=%d) uniform sampler samp_atlas_%d;\n", binding++, i);
+        SkSL::String::appendf(&result,
+                              "layout(set=1, binding=%d) uniform texture2D text_atlas_%d;\n", binding++, i);
     }
 
     return result;
@@ -86,15 +87,15 @@ const char* BitmapTextRenderStep::fragmentCoverageSkSL() const {
     return R"(
         half4 texColor;
         if (texIndex == 0) {
-           texColor = sample(text_atlas_0, textureCoords);
+           texColor = sample(makeSampler2D(text_atlas_0, samp_atlas_0), textureCoords);
         } else if (texIndex == 1) {
-           texColor = sample(text_atlas_1, textureCoords);
+           texColor = sample(makeSampler2D(text_atlas_1, samp_atlas_1), textureCoords);
         } else if (texIndex == 2) {
-           texColor = sample(text_atlas_2, textureCoords);
+           texColor = sample(makeSampler2D(text_atlas_2, samp_atlas_2), textureCoords);
         } else if (texIndex == 3) {
-           texColor = sample(text_atlas_3, textureCoords);
+           texColor = sample(makeSampler2D(text_atlas_3, samp_atlas_3), textureCoords);
         } else {
-           texColor = sample(text_atlas_0, textureCoords);
+           texColor = sample(makeSampler2D(text_atlas_0, samp_atlas_0), textureCoords);
         }
         // A8
         if (maskFormat == 0) {
