@@ -87,7 +87,8 @@ TextureInfo DawnCaps::getDefaultSampledTextureInfo(SkColorType colorType,
                                                    Protected,
                                                    Renderable renderable) const {
     wgpu::TextureUsage usage = wgpu::TextureUsage::TextureBinding |
-                               wgpu::TextureUsage::CopyDst;
+                               wgpu::TextureUsage::CopyDst |
+                               wgpu::TextureUsage::CopySrc;
     if (renderable == Renderable::kYes) {
         usage |= wgpu::TextureUsage::RenderAttachment;
     }
