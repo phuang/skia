@@ -225,7 +225,9 @@ sk_sp<DawnGraphicsPipeline> DawnGraphicsPipeline::Make(const DawnSharedContext* 
 
     bool hasFragment = !!fsModule;
     wgpu::RenderPipelineDescriptor descriptor;
+#if defined(SK_DEBUG)
     descriptor.label = label.c_str();
+#endif
 
     // Fragment state
     skgpu::BlendEquation equation = blendInfo.fEquation;
@@ -324,6 +326,9 @@ fn main() {}
             entries[2].buffer.minBindingSize = 0;
 
             wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
+#if defined(SK_DEBUG)
+            groupLayoutDesc.label = label.c_str();
+#endif
             groupLayoutDesc.entryCount = entries.size();
             groupLayoutDesc.entries = entries.data();
             groupLayouts[0] = device.CreateBindGroupLayout(&groupLayoutDesc);
@@ -349,6 +354,9 @@ fn main() {}
             }
 
             wgpu::BindGroupLayoutDescriptor groupLayoutDesc;
+#if defined(SK_DEBUG)
+            groupLayoutDesc.label = label.c_str();
+#endif
             groupLayoutDesc.entryCount = entries.size();
             groupLayoutDesc.entries = entries.data();
             groupLayouts[1] = device.CreateBindGroupLayout(&groupLayoutDesc);
@@ -359,6 +367,9 @@ fn main() {}
         }
 
         wgpu::PipelineLayoutDescriptor layoutDesc;
+#if defined(SK_DEBUG)
+        layoutDesc.label = label.c_str();
+#endif
         layoutDesc.bindGroupLayoutCount = hasFragment ? groupLayouts.size() : groupLayouts.size() - 1;
         layoutDesc.bindGroupLayouts = groupLayouts.data();
         auto layout = device.CreatePipelineLayout(&layoutDesc);

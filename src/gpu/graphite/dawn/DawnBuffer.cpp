@@ -11,8 +11,8 @@
 
 namespace skgpu::graphite {
 
-#ifdef SK_ENABLE_DAWN_DEBUG_INFO
-const char* kBufferTypeNames[kBufferTypeCount] = {
+#if defined(SK_DEBUG)
+static const char* kBufferTypeNames[kBufferTypeCount] = {
     "Vertex",
     "Index",
     "Xfer CPU to GPU",
@@ -57,7 +57,7 @@ sk_sp<Buffer> DawnBuffer::Make(const DawnSharedContext* sharedContext,
 
     size = SkAlignTo(size, dawnCaps->getMinBufferAlignment());
     wgpu::BufferDescriptor desc;
-#ifdef SK_ENABLE_DAWN_DEBUG_INFO
+#if defined(SK_DEBUG)
     desc.label = kBufferTypeNames[static_cast<int>(type)];
 #endif
     desc.usage = usage;

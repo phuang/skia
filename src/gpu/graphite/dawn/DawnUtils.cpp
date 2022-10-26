@@ -65,7 +65,11 @@ wgpu::TextureFormat DawnDepthStencilFlagsToFormat(SkEnumBitMask<DepthStencilFlag
 }
 
 // Print the source code for all shaders generated.
+#if defined(SK_DEBUG)
 static constexpr bool gPrintSKSL  = true;
+#else
+static constexpr bool gPrintSKSL  = false;
+#endif
 static constexpr bool gPrintSPIRV = false;
 static constexpr bool gPrintWGSL  = false;
 

@@ -131,7 +131,7 @@ wgpu::Device GraphiteDawnWindowContext::createDevice(wgpu::BackendType type) {
         desc.requiredFeaturesCount = features.size();
         desc.requiredFeatures = features.data();
 
-#if 0
+#if !defined(SK_DEBUG)
         wgpu::DawnTogglesDeviceDescriptor togglesDeviceDesc;
         std::array<const char*, 1> toggles = {
             "skip_validation",
