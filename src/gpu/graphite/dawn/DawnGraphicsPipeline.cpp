@@ -442,6 +442,7 @@ fn main() {}
     descriptor.multisample.mask = 0xFFFFFFFF;
     descriptor.multisample.alphaToCoverageEnabled = false;
 
+#if 0
     auto pipeline = device.CreateRenderPipeline(&descriptor);
     if (!pipeline) {
         SkASSERT(false);
@@ -454,10 +455,36 @@ fn main() {}
                                                                 depthStencilSettings.fStencilReferenceValue,
                                                                 !uniforms.empty(),
                                                                 hasFragment));
+#else
+    sk_sp<DawnGraphicsPipeline> pipeline(new DawnGraphicsPipeline(sharedContext,
+                                                                  primitiveType,
+                                                                  depthStencilSettings.fStencilReferenceValue,
+                                                                  !uniforms.empty(),
+                                                                  hasFragment));
+    pipeline->ref();
+    device.CreateRenderPipelineAsync(
+        &descriptor,
+        [](WGPUCreatePipelineAsyncStatus status,
+           WGPURenderPipeline wgpuPipeline,
+           char const * message,
+           void * userdata) {
+            auto* pipeline = reinterpret_cast<DawnGraphicsPipeline*>(userdata);
+            pipeline->fRenderPipeline = wgpu::RenderPipeline::Acquire(wgpuPipeline);
+            pipeline->unref();
+        }, pipeline.get());
+    return pipeline;
+#endif
 }
 
 void DawnGraphicsPipeline::freeGpuData() {
     fRenderPipeline = nullptr;
+}
+
+const wgpu::RenderPipeline& DawnGraphicsPipeline::dawnRenderPipeline() const {
+    while (!fRenderPipeline) {
+        static_cast<const DawnSharedContext *>(sharedContext())->device().Tick();
+    }
+    return fRenderPipeline.value();
 }
 
 } // namespace skgpu::graphite

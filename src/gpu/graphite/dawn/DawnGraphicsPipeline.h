@@ -13,7 +13,8 @@
 #include "include/ports/SkCFObject.h"
 #include "src/gpu/graphite/GraphicsPipeline.h"
 #include "src/gpu/graphite/DrawTypes.h"
-#include <memory>
+
+#include <optional>
 
 #include "webgpu/webgpu_cpp.h"
 
@@ -66,16 +67,15 @@ public:
     PrimitiveType primitiveType() const { return fPrimitiveType; }
     bool hasStepUniforms() const { return fHasStepUniforms; }
     bool hasFragment() const { return fHasFragment; }
-    const wgpu::RenderPipeline& dawnRenderPipeline() const { return fRenderPipeline; }
+    const wgpu::RenderPipeline& dawnRenderPipeline() const;
+
 private:
     DawnGraphicsPipeline(const skgpu::graphite::SharedContext* sharedContext,
-                         wgpu::RenderPipeline renderPipeline,
                          PrimitiveType primitiveType,
                          uint32_t refValue,
                          bool hasStepUniforms,
                          bool hasFragment)
         : GraphicsPipeline(sharedContext)
-        , fRenderPipeline(std::move(renderPipeline))
         , fPrimitiveType(primitiveType)
         , fStencilReferenceValue(refValue)
         , fHasStepUniforms(hasStepUniforms)
@@ -83,7 +83,7 @@ private:
 
     void freeGpuData() override;
 
-    wgpu::RenderPipeline fRenderPipeline;
+    std::optional<wgpu::RenderPipeline> fRenderPipeline;
     const PrimitiveType fPrimitiveType;
     const uint32_t fStencilReferenceValue;
     const bool fHasStepUniforms;
