@@ -2839,6 +2839,12 @@ if (skia_enable_tools) {
         if (dawn_enable_d3d12) {
           sources += [ "tools/sk_app/win/DawnD3D12WindowContext_win.cpp" ]
         }
+        if (skia_enable_graphite) {
+          sources +=
+              [ "tools/sk_app/win/GraphiteDawnD3D12WindowContext_win.cpp" ]
+          sources += [ "tools/sk_app/GraphiteDawnWindowContext.cpp" ]
+          sources += [ "tools/sk_app/GraphiteDawnWindowContext.h" ]
+        }
       } else if (is_mac) {
         if (dawn_enable_metal) {
           sources += [ "tools/sk_app/mac/DawnMTLWindowContext_mac.mm" ]
