@@ -83,7 +83,7 @@ bool DawnCaps::isRenderable(wgpu::TextureFormat format, uint32_t sampleCount) co
 }
 
 TextureInfo DawnCaps::getDefaultSampledTextureInfo(SkColorType colorType,
-                                                   uint32_t levelCount,
+                                                   Mipmapped mipmapped,
                                                    Protected,
                                                    Renderable renderable) const {
     wgpu::TextureUsage usage = wgpu::TextureUsage::TextureBinding |
@@ -101,7 +101,7 @@ TextureInfo DawnCaps::getDefaultSampledTextureInfo(SkColorType colorType,
 
     DawnTextureInfo info;
     info.fSampleCount = 1;
-    info.fLevelCount = levelCount;
+    info.fMipmapped = mipmapped;
     info.fFormat = format;
     info.fUsage = usage;
     // info.fStorageMode = MTLStorageModePrivate;
@@ -116,13 +116,9 @@ TextureInfo DawnCaps::getDefaultMSAATextureInfo(const TextureInfo& singleSampled
 
     DawnTextureInfo info;
     info.fSampleCount = this->defaultMSAASamples();
-    info.fLevelCount = 1;
-    info.fFormat = singleSpec.fFormat;
-    info.fUsage = wgpu::TextureUsage::RenderAttachment;
-    // TODO: ?
-    // info.fStorageMode = this->getDefaultMSAAStorageMode(discardable);
-    // info.fFramebufferOnly = false;
-
+    info.fMipmapped   = Mipmapped::kNo;
+    info.fFormat      = singleSpec.fFormat;
+    info.fUsage       = wgpu::TextureUsage::RenderAttachment;
     return info;
 }
 
@@ -131,12 +127,9 @@ TextureInfo DawnCaps::getDefaultDepthStencilTextureInfo(SkEnumBitMask<DepthStenc
                                                         Protected) const {
     DawnTextureInfo info;
     info.fSampleCount = sampleCount;
-    info.fLevelCount = 1;
-    info.fFormat = DawnDepthStencilFlagsToFormat(depthStencilType);
-    info.fUsage = wgpu::TextureUsage::RenderAttachment;
-    // TODO: ?
-    // info.fStorageMode = this->getDefaultMSAAStorageMode(Discardable::kYes);
-    // info.fFramebufferOnly = false;
+    info.fMipmapped   = Mipmapped::kNo;
+    info.fFormat      = DawnDepthStencilFlagsToFormat(depthStencilType);
+    info.fUsage       = wgpu::TextureUsage::RenderAttachment;
     return info;
 }
 
@@ -487,7 +480,7 @@ void DawnCaps::buildKeyForTexture(SkISize dimensions,
     uint32_t samplesKey = samples_to_key(info.numSamples());
     // We don't have to key the number of mip levels because it is inherit in the combination of
     // isMipped and dimensions.
-    bool isMipped = info.numMipLevels() > 1;
+    bool isMipped = info.mipmapped() == Mipmapped::kYes;
     Protected isProtected = info.isProtected();
 
     // bool isFBOnly = dawnSpec.fFramebufferOnly;

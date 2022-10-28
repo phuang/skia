@@ -9,6 +9,7 @@
 
 #include "include/gpu/graphite/dawn/DawnTypes.h"
 #include "include/private/gpu/graphite/DawnTypesPriv.h"
+#include "src/core/SkMipmap.h"
 #include "src/gpu/graphite/dawn/DawnCaps.h"
 #include "src/gpu/graphite/dawn/DawnSharedContext.h"
 #include "src/gpu/graphite/dawn/DawnUtils.h"
@@ -71,6 +72,11 @@ wgpu::Texture DawnTexture::MakeDawnTexture(const DawnSharedContext* sharedContex
         return {};
     }
 
+    int numMipLevels = 1;
+    if (info.mipmapped() == Mipmapped::kYes) {
+        numMipLevels = SkMipmap::ComputeLevelCount(dimensions.width(), dimensions.height()) + 1;
+    }
+
     wgpu::TextureDescriptor desc;
     desc.label                      = texture_info_to_label(info, dawnSpec);
     desc.usage                      = dawnSpec.fUsage;
@@ -79,7 +85,7 @@ wgpu::Texture DawnTexture::MakeDawnTexture(const DawnSharedContext* sharedContex
     desc.size.height                = dimensions.height();
     desc.size.depthOrArrayLayers    = 1;
     desc.format                     = dawnSpec.fFormat;
-    desc.mipLevelCount              = info.numMipLevels();
+    desc.mipLevelCount              = numMipLevels;
     desc.sampleCount                = info.numSamples();
     desc.viewFormatCount            = 0;
     desc.viewFormats                = nullptr;
