@@ -351,7 +351,6 @@ void DawnCommandBuffer::addDrawPass(const DrawPass* drawPass) {
 }
 
 void DawnCommandBuffer::bindGraphicsPipeline(const GraphicsPipeline* graphicsPipeline) {
-    // SkASSERT(false);
     fActiveGraphicsPipeline = static_cast<const DawnGraphicsPipeline*>(graphicsPipeline);
     fActiveRenderPassEncoder.SetPipeline(fActiveGraphicsPipeline->dawnRenderPipeline());
     fBoundUniformBuffersDirty = true;
@@ -609,13 +608,22 @@ bool DawnCommandBuffer::onCopyTextureToBuffer(const Texture* texture,
 
     wgpu::ImageCopyBuffer dst;
     dst.buffer = wgpuBuffer;
-    dst.layout.bytesPerRow = bufferRowBytes;
+    dst.layout.bytesPerRow = (bufferRowBytes + 0xFF) & ~0xFF;
     dst.layout.offset = bufferOffset;
 
-    wgpu::Extent3D copySize = {
-            static_cast<uint32_t>(srcRect.width()), static_cast<uint32_t>(srcRect.height()), 1};
-
-    fCommandEncoder.CopyTextureToBuffer(&src, &dst, &copySize);
+    if (dst.layout.bytesPerRow == bufferRowBytes) {
+        wgpu::Extent3D copySize = { static_cast<uint32_t>(srcRect.width()),
+                                    static_cast<uint32_t>(srcRect.height()), 1};
+        fCommandEncoder.CopyTextureToBuffer(&src, &dst, &copySize);
+    } else {
+        // TODO: optimize this copy.
+        wgpu::Extent3D copySize = { static_cast<uint32_t>(srcRect.width()), 1, 1};
+        while(src.origin.y < static_cast<uint32_t>(srcRect.bottom())) {
+            fCommandEncoder.CopyTextureToBuffer(&src, &dst, &copySize);
+            dst.layout.offset += bufferRowBytes;
+            ++src.origin.y;
+        }
+    }
 
     return true;
 }
@@ -630,21 +638,31 @@ bool DawnCommandBuffer::onCopyBufferToTexture(const Buffer* buffer,
     auto& wgpuTexture = static_cast<const DawnTexture*>(texture)->dawnTexture();
     auto& wgpuBuffer = static_cast<const DawnBuffer*>(buffer)->dawnBuffer();
 
-    for (int i = 0; i < count; ++i) {
-        wgpu::ImageCopyBuffer src;
-        src.buffer = wgpuBuffer;
-        src.layout.bytesPerRow = (copyData[i].fBufferRowBytes + 0xFF) & ~0xFF;
+    wgpu::ImageCopyBuffer src;
+    src.buffer = wgpuBuffer;
 
-        wgpu::ImageCopyTexture dst;
-        dst.texture = wgpuTexture;
+    wgpu::ImageCopyTexture dst;
+    dst.texture = wgpuTexture;
+
+    for (int i = 0; i < count; ++i) {
         dst.origin.x = copyData[i].fRect.x();
-        wgpu::Extent3D copySize = { static_cast<uint32_t>(copyData[i].fRect.width()), 1, 1 };
-        size_t offset = copyData[i].fBufferOffset;
-        for (int row = copyData[i].fRect.y(); row < copyData[i].fRect.y() + copyData[i].fRect.height(); ++row) {
-            src.layout.offset = offset;
-            dst.origin.y = row;
+        dst.origin.y = copyData[i].fRect.y();
+        src.layout.bytesPerRow = (copyData[i].fBufferRowBytes + 0xFF) & ~0xFF;
+        src.layout.offset = copyData[i].fBufferOffset;
+        // If row is not aligned with 256 bytes, we have to copy for each rows.
+        // TODO: optimize this copy.
+        if (src.layout.bytesPerRow != copyData[i].fBufferRowBytes) {
+            wgpu::Extent3D copySize = { static_cast<uint32_t>(copyData[i].fRect.width()), 1, 1 };
+            while (dst.origin.y < static_cast<uint32_t>(copyData[i].fRect.bottom())) {
+                fCommandEncoder.CopyBufferToTexture(&src, &dst, &copySize);
+                src.layout.offset += copyData[i].fBufferRowBytes;
+                ++dst.origin.y;
+            }
+        } else {
+            wgpu::Extent3D copySize = { static_cast<uint32_t>(copyData[i].fRect.width()),
+                                        static_cast<uint32_t>(copyData[i].fRect.height()),
+                                        1 };
             fCommandEncoder.CopyBufferToTexture(&src, &dst, &copySize);
-            offset += copyData[i].fBufferRowBytes;
         }
     }
 
