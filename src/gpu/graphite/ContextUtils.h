@@ -25,6 +25,8 @@ class PaintParams;
 class Recorder;
 class RenderStep;
 
+enum class Layout;
+
 std::tuple<SkUniquePaintParamsID, const SkUniformDataBlock*, const SkTextureDataBlock*>
 ExtractPaintData(Recorder*,
                  SkPipelineDataGatherer* gatherer,
@@ -38,11 +40,13 @@ ExtractRenderStepData(UniformDataCache* uniformDataCache,
                       const RenderStep* step,
                       const DrawParams& params);
 
-std::string GetSkSLVS(const RenderStep* step,
+std::string GetSkSLVS(Layout uniformLayout,
+                      const RenderStep* step,
                       bool defineShadingSsboIndexVarying,
                       bool defineLocalCoordsVarying);
 
-std::string GetSkSLFS(const SkShaderCodeDictionary*,
+std::string GetSkSLFS(Layout uniformLayout,
+                      const SkShaderCodeDictionary*,
                       const SkRuntimeEffectDictionary*,
                       const RenderStep* renderStep,
                       SkUniquePaintParamsID paintID,
@@ -52,8 +56,11 @@ std::string GetSkSLFS(const SkShaderCodeDictionary*,
 
 std::string EmitPaintParamsUniforms(int bufferID,
                                     const char* name,
-                                    const std::vector<SkPaintParamsKey::BlockReader>&);
+                                    Layout layout,
+                                    const std::vector<SkPaintParamsKey::BlockReader>&,
+                                    bool needsDev2Local);
 std::string EmitRenderStepUniforms(int bufferID, const char* name,
+                                   Layout layout,
                                    SkSpan<const SkUniform> uniforms);
 std::string EmitPaintParamsStorageBuffer(int bufferID,
                                          const char* bufferTypePrefix,

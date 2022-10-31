@@ -15,6 +15,7 @@
 #include "include/private/SkVx.h"
 #include "src/core/SkSLTypeShared.h"
 #include "src/core/SkUniform.h"
+#include "src/gpu/graphite/ResourceTypes.h"
 
 class SkM44;
 struct SkPoint;
@@ -24,12 +25,6 @@ class SkUniformDataBlock;
 namespace skgpu::graphite {
 
 enum class CType : unsigned;
-
-enum class Layout {
-    kStd140,
-    kStd430,
-    kMetal, /** This is our own self-imposed layout we use for Metal. */
-};
 
 class UniformOffsetCalculator {
 public:

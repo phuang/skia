@@ -32,6 +32,7 @@
 
 #ifdef SK_GRAPHITE_ENABLED
 namespace skgpu::graphite {
+enum class Layout;
 class RenderStep;
 #ifdef SK_ENABLE_PRECOMPILE
 class BlenderID;
@@ -162,7 +163,8 @@ public:
 #endif
 
 #if defined(SK_GRAPHITE_ENABLED) && defined(SK_ENABLE_SKSL)
-    std::string toSkSL(const skgpu::graphite::RenderStep* step,
+    std::string toSkSL(const skgpu::graphite::Layout uniformLayout,
+                       const skgpu::graphite::RenderStep* step,
                        const bool defineShadingSsboIndexVarying,
                        const bool defineLocalCoordsVarying) const;
 #endif

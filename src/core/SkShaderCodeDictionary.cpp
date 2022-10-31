@@ -117,7 +117,8 @@ static void emit_preamble_for_entry(const SkShaderInfo& shaderInfo,
 //   - The result of the final code snippet is then copied into "sk_FragColor".
 //   Note: each entry's 'fStaticFunctionName' field is expected to match the name of a function
 //   in the Graphite pre-compiled module.
-std::string SkShaderInfo::toSkSL(const skgpu::graphite::RenderStep* step,
+std::string SkShaderInfo::toSkSL(const skgpu::graphite::Layout uniformLayout,
+                                 const skgpu::graphite::RenderStep* step,
                                  const bool defineShadingSsboIndexVarying,
                                  const bool defineLocalCoordsVarying) const {
     std::string preamble = skgpu::graphite::EmitVaryings(
@@ -128,14 +129,15 @@ std::string SkShaderInfo::toSkSL(const skgpu::graphite::RenderStep* step,
     // TODO: The use of these indices is Metal-specific. We should replace these functions with
     // API-independent ones.
     if (step->numUniforms() > 0) {
-        preamble += skgpu::graphite::EmitRenderStepUniforms(/*bufferID=*/1, "Step",
-                                                            step->uniforms());
+        preamble += skgpu::graphite::EmitRenderStepUniforms(
+                /*bufferID=*/1, "Step", uniformLayout, step->uniforms());
     }
     if (this->ssboIndex()) {
         preamble += skgpu::graphite::EmitPaintParamsStorageBuffer(/*bufferID=*/2, "FS", "fs",
                                                                   fBlockReaders);
     } else {
-        preamble += skgpu::graphite::EmitPaintParamsUniforms(/*bufferID=*/2, "FS", fBlockReaders);
+        preamble += skgpu::graphite::EmitPaintParamsUniforms(
+                /*bufferID=*/2, "FS", uniformLayout, fBlockReaders, this->needsLocalCoords());
     }
     int binding = 0;
     preamble += skgpu::graphite::EmitTexturesAndSamplers(fBlockReaders, &binding);

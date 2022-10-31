@@ -448,7 +448,7 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
 
     SkShaderCodeDictionary* dict = recorder->priv().shaderCodeDictionary();
     SkPaintParamsKeyBuilder builder(dict);
-    SkPipelineDataGatherer gatherer(Layout::kMetal);  // TODO: get the layout from the recorder
+    SkPipelineDataGatherer gatherer(recorder->priv().caps()->uniformBufferLayout());
 
     std::vector<SortKey> keys;
     keys.reserve(draws->renderStepCount());
