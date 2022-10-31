@@ -191,6 +191,8 @@ void DawnCaps::initCaps(const wgpu::Device& device) {
     // TODO
     fRequiredUniformBufferAlignment = 256;
     fRequiredStorageBufferAlignment = fRequiredUniformBufferAlignment;
+    fUniformBufferLayout = Layout::kStd140;
+    fStorageBufferLayout = Layout::kStd430;
 
     // TODO
     fStorageBufferSupport = false;

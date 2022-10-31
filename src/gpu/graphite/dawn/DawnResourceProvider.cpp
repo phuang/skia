@@ -76,7 +76,8 @@ sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
 #if 0
     std::string vsWGSL, fsWGSL;
     if (!SkSLToWGSL(skslCompiler,
-                     GetSkSLFS(fSharedContext->shaderCodeDictionary(),
+                     GetSkSLFS(Layout::kStd140,
+                               fSharedContext->shaderCodeDictionary(),
                                runtimeDict,
                                step,
                                pipelineDesc.paintParamsID(),
@@ -119,7 +120,8 @@ sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
     wgpu::ShaderModule fsModule, vsModule;
     // Some steps just render depth buffer but not color buffer, so the fragment
     // shader is null.
-    auto fsSKSL = GetSkSLFS(fSharedContext->shaderCodeDictionary(),
+    auto fsSKSL = GetSkSLFS(Layout::kStd140,
+                            fSharedContext->shaderCodeDictionary(),
                             runtimeDict,
                             step,
                             pipelineDesc.paintParamsID(),
@@ -147,7 +149,7 @@ sk_sp<GraphicsPipeline> DawnResourceProvider::createGraphicsPipeline(
     }
 
     if (!SkSLToSPIRV(skslCompiler,
-                     GetSkSLVS(step, useShadingSsboIndex, localCoordsNeeded),
+                     GetSkSLVS(Layout::kStd140, step, useShadingSsboIndex, localCoordsNeeded),
                      SkSL::ProgramKind::kGraphiteVertex,
                      settings,
                      &vsSPIRV,

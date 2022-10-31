@@ -134,6 +134,11 @@ std::string EmitPaintParamsUniforms(int bufferID,
             result += get_uniforms(layout, uniforms, &offset, i);
         }
     }
+    if (needsLocalCoords) {
+        static constexpr SkUniform kDev2LocalUniform[] = {{ "dev2LocalUni", SkSLType::kFloat4x4 }};
+        result += "// NeedsLocalCoords\n";
+        result += get_uniforms(layout, SkSpan<const SkUniform>(kDev2LocalUniform, 1), &offset, -1);
+    }
     result.append("};\n\n");
 
     return result;
