@@ -113,6 +113,16 @@ std::string get_uniforms(Layout layout,
     *offset = offsetter.size();
     return result;
 }
+
+bool have_uniforms(const std::vector<SkPaintParamsKey::BlockReader>& readers) {
+    for (const SkPaintParamsKey::BlockReader& r : readers) {
+        if (r.entry()->fUniforms.size() > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // anonymous namespace
 
 std::string EmitPaintParamsUniforms(int bufferID,
