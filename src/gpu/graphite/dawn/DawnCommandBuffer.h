@@ -14,10 +14,14 @@
 #include "src/gpu/graphite/Log.h"
 #include "src/gpu/graphite/dawn/DawnStagingBufferPool.h"
 
+#include <set>
 
 #include "webgpu/webgpu_cpp.h"
 
+#define ALWAYS_MAPPED_CONSTANT_BUFFER 1
+
 namespace skgpu::graphite {
+class DawnBuffer;
 class DawnGraphicsPipeline;
 class DawnQueueManager;
 class DawnResourceProvider;
@@ -42,6 +46,7 @@ public:
     }
 
     wgpu::CommandBuffer finishEncoding();
+    void onSubmitted();
 
 private:
     DawnCommandBuffer(const DawnSharedContext* sharedContext,
@@ -128,11 +133,19 @@ private:
     std::array<size_t, 16> fBoundUniformBufferOffsets;
     std::array<size_t, 16> fBoundUniformBufferRanges;
 
+    std::set<const DawnBuffer*> fBuffers;
+
     wgpu::CommandEncoder fCommandEncoder;
     wgpu::RenderPassEncoder fActiveRenderPassEncoder;
     wgpu::ComputePassEncoder fActiveComputePassEncoder;
+#if ALWAYS_MAPPED_CONSTANT_BUFFER
+    uint32_t fIntrinsicConstantCount = 0;
+    static constexpr uint32_t kIntrinsicConstantPerBuffer = 64;
+    std::vector<wgpu::Buffer> fConstantBuffers;
+#else
     wgpu::Buffer fConstantBuffer;
-    DawnStagingBufferPool fConstantStagingBufferPool;
+#endif
+    // DawnStagingBufferPool fConstantStagingBufferPool;
     const DawnGraphicsPipeline* fActiveGraphicsPipeline = nullptr;
     [[maybe_unused]] const DawnSharedContext* fSharedContext;
     [[maybe_unused]] DawnQueueManager* fCmdQueue;

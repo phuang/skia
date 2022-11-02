@@ -143,8 +143,8 @@ wgpu::Device GraphiteDawnWindowContext::createDevice(wgpu::BackendType type) {
         auto device = wgpu::Device::Acquire(adapter.CreateDevice(&desc));
         device.SetUncapturedErrorCallback(
                 [](WGPUErrorType type, const char* message, void*) {
-                    SkDebugf("Device error: %s\n", message);
-                    SkASSERT(false);
+                    SK_ABORT("Device error: %s\n", message);
+                    // SkASSERT(false);
                 },
                 0);
         return device;

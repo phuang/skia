@@ -39,8 +39,8 @@ std::unique_ptr<DawnCommandBuffer> DawnCommandBuffer::Make(const DawnSharedConte
 DawnCommandBuffer::DawnCommandBuffer(const DawnSharedContext* sharedContext,
                                      DawnQueueManager* cmdQueue,
                                      DawnResourceProvider* resourceProvider)
-        : fConstantStagingBufferPool(sizeof(IntrinsicConstant))
-        , fSharedContext(sharedContext)
+        // : fConstantStagingBufferPool(sizeof(IntrinsicConstant))
+        : fSharedContext(sharedContext)
         , fCmdQueue(cmdQueue)
         , fResourceProvider(resourceProvider) {}
 
@@ -56,13 +56,19 @@ wgpu::CommandBuffer DawnCommandBuffer::finishEncoding() {
     return cmdBuffer;
 }
 
+void DawnCommandBuffer::onSubmitted() {
+    // fBuffers.clear();
+}
+
 void DawnCommandBuffer::onResetCommandBuffer() {
     fActiveGraphicsPipeline = nullptr;
     fActiveRenderPassEncoder = nullptr;
     fActiveComputePassEncoder = nullptr;
     fCommandEncoder = nullptr;
     hasTextureGroupBind = false;
-
+#if ALWAYS_MAPPED_CONSTANT_BUFFER
+    fIntrinsicConstantCount = 0;
+#endif
     for (auto& bufferSlot : fBoundUniformBuffers) {
         bufferSlot = nullptr;
     }
@@ -70,20 +76,6 @@ void DawnCommandBuffer::onResetCommandBuffer() {
 }
 
 bool DawnCommandBuffer::setNewCommandBufferResources() {
-    if (!fConstantBuffer) {
-        wgpu::BufferDescriptor desc;
-#if defined(SK_DEBUG)
-        desc.label = "CommandBufferConstant";
-#endif
-        desc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
-        desc.size = sizeof(IntrinsicConstant);
-        desc.mappedAtCreation = false;
-        fConstantBuffer = fSharedContext->device().CreateBuffer(&desc);
-        if (!fConstantBuffer) {
-            SkASSERT(false);
-            return false;
-        }
-    }
     SkASSERT(!fCommandEncoder);
     fCommandEncoder = fSharedContext->device().CreateCommandEncoder();
     SkASSERT(fCommandEncoder);
@@ -360,6 +352,7 @@ void DawnCommandBuffer::bindUniformBuffer(const BindBufferInfo& info, UniformSlo
     SkASSERT(fActiveRenderPassEncoder);
 
     auto dawnBuffer = static_cast<const DawnBuffer*>(info.fBuffer);
+    // fBuffers.insert(dawnBuffer);
 
     unsigned int bufferIndex = 0;
     switch(slot) {
@@ -391,16 +384,19 @@ void DawnCommandBuffer::bindDrawBuffers(const BindBufferInfo& vertices,
 
     if (vertices.fBuffer) {
         auto dawnBuffer = static_cast<const DawnBuffer*>(vertices.fBuffer)->dawnBuffer();
+        // fBuffers.insert(static_cast<const DawnBuffer*>(vertices.fBuffer));
         fActiveRenderPassEncoder.SetVertexBuffer(
                 DawnGraphicsPipeline::kVertexBufferIndex, dawnBuffer, vertices.fOffset);
     }
     if (instances.fBuffer) {
         auto dawnBuffer = static_cast<const DawnBuffer*>(instances.fBuffer)->dawnBuffer();
+        // fBuffers.insert(static_cast<const DawnBuffer*>(instances.fBuffer));
         fActiveRenderPassEncoder.SetVertexBuffer(
                 DawnGraphicsPipeline::kInstanceBufferIndex, dawnBuffer, instances.fOffset);
     }
     if (indices.fBuffer) {
         auto dawnBuffer = static_cast<const DawnBuffer*>(indices.fBuffer)->dawnBuffer();
+        // fBuffers.insert(static_cast<const DawnBuffer*>(indices.fBuffer));
         fActiveRenderPassEncoder.SetIndexBuffer(
                 dawnBuffer, wgpu::IndexFormat::Uint16, indices.fOffset);
     }
@@ -446,37 +442,44 @@ void DawnCommandBuffer::bindTextureAndSamplers(const DrawPass& drawPass,
 void DawnCommandBuffer::syncUniformBuffers() {
     if (fBoundUniformBuffersDirty) {
         fBoundUniformBuffersDirty = false;
-
-        std::vector<wgpu::BindGroupEntry> entries(1);
-        entries[0].binding = DawnGraphicsPipeline::kIntrinsicUniformBufferIndex;
-        entries[0].buffer = fConstantBuffer;
-        entries[0].offset = 0;
-        entries[0].size = WGPU_WHOLE_SIZE;
-
+        std::array<wgpu::BindGroupEntry, 3> entries;
+        int i = 0;
+#if ALWAYS_MAPPED_CONSTANT_BUFFER
+        auto j = (fIntrinsicConstantCount - 1) / kIntrinsicConstantPerBuffer;
+        entries[i].binding = DawnGraphicsPipeline::kIntrinsicUniformBufferIndex;
+        entries[i].buffer = fConstantBuffers[j];
+        entries[i].offset = ((fIntrinsicConstantCount - 1) % kIntrinsicConstantPerBuffer) * sizeof(IntrinsicConstant);
+        entries[i].size = sizeof(IntrinsicConstant);
+        ++i;
+#else
+        entries[i].binding = DawnGraphicsPipeline::kIntrinsicUniformBufferIndex;
+        entries[i].buffer = fConstantBuffer;
+        entries[i].offset = 0;
+        entries[i].size = sizeof(IntrinsicConstant);
+        ++i;
+#endif
         if (fActiveGraphicsPipeline->hasStepUniforms() &&
             fBoundUniformBuffers[DawnGraphicsPipeline::kRenderStepUniformBufferIndex]) {
-            entries.push_back({});
-            auto& entry = entries.back();
-            entry.binding = DawnGraphicsPipeline::kRenderStepUniformBufferIndex;
-            entry.buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
-            entry.offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
-            entry.size = WGPU_WHOLE_SIZE;
+            entries[i].binding = DawnGraphicsPipeline::kRenderStepUniformBufferIndex;
+            entries[i].buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
+            entries[i].offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
+            entries[i].size = wgpu::kWholeSize;
+            ++i;
         }
 
         if (fActiveGraphicsPipeline->hasFragment() &&
             fBoundUniformBuffers[DawnGraphicsPipeline::kPaintUniformBufferIndex]) {
-            entries.push_back({});
-            auto& entry = entries.back();
-            entry.binding = DawnGraphicsPipeline::kPaintUniformBufferIndex;
-            entry.buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kPaintUniformBufferIndex];
-            entry.offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kPaintUniformBufferIndex];
-            entry.size = WGPU_WHOLE_SIZE;
+            entries[i].binding = DawnGraphicsPipeline::kPaintUniformBufferIndex;
+            entries[i].buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kPaintUniformBufferIndex];
+            entries[i].offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kPaintUniformBufferIndex];
+            entries[i].size =  wgpu::kWholeSize;
+            ++i;
         }
 
         wgpu::BindGroupDescriptor desc;
         desc.layout = fActiveGraphicsPipeline->dawnRenderPipeline().GetBindGroupLayout(
                 DawnGraphicsPipeline::kUniformBufferBindGroupIndex);
-        desc.entryCount = entries.size();
+        desc.entryCount = i;
         desc.entries = entries.data();
 
         auto bindGroup = fSharedContext->device().CreateBindGroup(&desc);
@@ -505,8 +508,41 @@ void DawnCommandBuffer::preprocessViewport(const DrawPassCommands::SetViewport& 
     const float invTwoH = 2.f / viewportCommand.fViewport.height();
     const IntrinsicConstant rtAdjust = {invTwoW, -invTwoH, -1.f - x * invTwoW, 1.f + y * invTwoH};
 
-    fConstantStagingBufferPool.writeBuffer(
-            fSharedContext->device(), fCmdQueue, fCommandEncoder, fConstantBuffer, &rtAdjust);
+#if ALWAYS_MAPPED_CONSTANT_BUFFER
+    auto i = fIntrinsicConstantCount / kIntrinsicConstantPerBuffer;
+    if (i >= fConstantBuffers.size()) {
+        SkASSERT(i == fConstantBuffers.size());
+        wgpu::BufferDescriptor desc;
+#if defined(SK_DEBUG)
+        desc.label = "CommandBufferConstant";
+#endif
+        desc.usage = wgpu::BufferUsage::MapWrite | wgpu::BufferUsage::Uniform;
+        desc.size = sizeof(IntrinsicConstant) * kIntrinsicConstantPerBuffer;
+        desc.mappedAtCreation = true;
+        auto buffer = fSharedContext->device().CreateBuffer(&desc);
+        SkASSERT(buffer);
+        fConstantBuffers.push_back(std::move(buffer));
+    }
+    auto& buffer = fConstantBuffers[i];
+    auto offset = (fIntrinsicConstantCount % kIntrinsicConstantPerBuffer) * sizeof(IntrinsicConstant);
+    memcpy(buffer.GetMappedRange(offset, sizeof(rtAdjust)), rtAdjust, sizeof(IntrinsicConstant));
+    ++fIntrinsicConstantCount;
+#else
+    if (!fConstantBuffer) {
+        wgpu::BufferDescriptor desc;
+#if defined(SK_DEBUG)
+        desc.label = "CommandBufferConstant";
+#endif
+        desc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+        desc.size = sizeof(IntrinsicConstant);
+        desc.mappedAtCreation = false;
+        fConstantBuffer = fSharedContext->device().CreateBuffer(&desc);
+        SkASSERT(fConstantBuffer);
+    }
+    fCommandEncoder.WriteBuffer(fConstantBuffer, 0, reinterpret_cast<const uint8_t*>(rtAdjust), sizeof(rtAdjust));
+#endif
+    // fConstantStagingBufferPool.writeBuffer(
+    //         fSharedContext->device(), fCmdQueue, fCommandEncoder, fConstantBuffer, &rtAdjust);
 }
 
 void DawnCommandBuffer::setViewport(float x, float y, float width, float height,
@@ -601,6 +637,8 @@ bool DawnCommandBuffer::onCopyTextureToBuffer(const Texture* texture,
     auto& wgpuTexture = static_cast<const DawnTexture*>(texture)->dawnTexture();
     auto& wgpuBuffer = static_cast<const DawnBuffer*>(buffer)->dawnBuffer();
 
+    // fBuffers.insert(static_cast<const DawnBuffer*>(buffer));
+
     wgpu::ImageCopyTexture src;
     src.texture = wgpuTexture;
     src.origin.x = srcRect.fLeft;
@@ -637,6 +675,8 @@ bool DawnCommandBuffer::onCopyBufferToTexture(const Buffer* buffer,
 
     auto& wgpuTexture = static_cast<const DawnTexture*>(texture)->dawnTexture();
     auto& wgpuBuffer = static_cast<const DawnBuffer*>(buffer)->dawnBuffer();
+
+    // fBuffers.insert(static_cast<const DawnBuffer*>(buffer));
 
     wgpu::ImageCopyBuffer src;
     src.buffer = wgpuBuffer;

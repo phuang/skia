@@ -22,6 +22,8 @@ static const char* kBufferTypeNames[kBufferTypeCount] = {
 };
 #endif
 
+#define ALWAYS_MAPPED_HACK 1
+
 sk_sp<Buffer> DawnBuffer::Make(const DawnSharedContext* sharedContext,
                                size_t size,
                                BufferType type,
@@ -34,6 +36,28 @@ sk_sp<Buffer> DawnBuffer::Make(const DawnSharedContext* sharedContext,
 
 
     wgpu::BufferUsage usage = wgpu::BufferUsage::None;
+#if ALWAYS_MAPPED_HACK
+    switch (type) {
+    case BufferType::kVertex:
+        usage = wgpu::BufferUsage::Vertex | wgpu::BufferUsage::MapWrite;
+        break;
+    case BufferType::kIndex:
+        usage = wgpu::BufferUsage::Index | wgpu::BufferUsage::MapWrite;
+        break;
+    case BufferType::kXferCpuToGpu:
+        usage = wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::MapWrite;
+        break;
+    case BufferType::kXferGpuToCpu:
+        usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
+        break;
+    case BufferType::kUniform:
+        usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::MapWrite;
+        break;
+    case BufferType::kStorage:
+        usage = wgpu::BufferUsage::Storage;
+        break;
+    }
+#else
     switch (type) {
     case BufferType::kVertex:
         usage = wgpu::BufferUsage::Vertex | wgpu::BufferUsage::CopyDst;
@@ -54,8 +78,10 @@ sk_sp<Buffer> DawnBuffer::Make(const DawnSharedContext* sharedContext,
         usage = wgpu::BufferUsage::Storage;
         break;
     }
+#endif
 
     size = SkAlignTo(size, dawnCaps->getMinBufferAlignment());
+    // fprintf(stderr, "EEEE size=%f\n", ((double)size) / 1024);
     wgpu::BufferDescriptor desc;
 #if defined(SK_DEBUG)
     desc.label = kBufferTypeNames[static_cast<int>(type)];
@@ -64,7 +90,11 @@ sk_sp<Buffer> DawnBuffer::Make(const DawnSharedContext* sharedContext,
     desc.size  = size;
     // For wgpu::Buffer can be mapped at creation time for the initial data
     // uploading. we should use it for better performance?
-    // desc.mappedAtCreation = true;
+#if ALWAYS_MAPPED_HACK
+    desc.mappedAtCreation = true;
+#else
+    desc.mappedAtCreation = false;
+#endif
 
     auto buffer = sharedContext->device().CreateBuffer(&desc);
     if (!buffer) {
@@ -90,7 +120,7 @@ DawnBuffer::DawnBuffer(const DawnSharedContext* sharedContext,
 void DawnBuffer::onMap() {
     SkASSERT(fBuffer);
     SkASSERT(!this->isMapped());
-
+#if !ALWAYS_MAPPED_HACK
     bool supportMapRead  = fBuffer.GetUsage() & wgpu::BufferUsage::MapRead;
     bool supportMapWrite = fBuffer.GetUsage() & wgpu::BufferUsage::MapWrite;
 
@@ -121,7 +151,7 @@ void DawnBuffer::onMap() {
         this->dawnSharedContext()->device().Tick();
     }
     SkASSERT(status.value() == wgpu::BufferMapAsyncStatus::Success);
-
+#endif
     fMapPtr = fBuffer.GetMappedRange();
     SkASSERT(fMapPtr);
 }
@@ -131,7 +161,7 @@ void DawnBuffer::onUnmap() {
     SkASSERT(this->isMapped());
 
     fMapPtr = nullptr;
-
+#if !ALWAYS_MAPPED_HACK
     bool supportMapRead  = fBuffer.GetUsage() & wgpu::BufferUsage::MapRead;
     bool supportMapWrite = fBuffer.GetUsage() & wgpu::BufferUsage::MapWrite;
     if (supportMapRead || supportMapWrite) {
@@ -144,6 +174,7 @@ void DawnBuffer::onUnmap() {
                                              0,
                                              fStagingBuffer.data(),
                                              size());
+#endif
 }
 
 void DawnBuffer::freeGpuData() {

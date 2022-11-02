@@ -28,6 +28,9 @@ public:
 
     const wgpu::Buffer& dawnBuffer() const { return fBuffer; }
 
+    void MapInternal();
+    void UnmapInternal();
+
 private:
     DawnBuffer(const DawnSharedContext*,
                size_t size,
@@ -45,6 +48,7 @@ private:
     }
 
     wgpu::Buffer fBuffer;
+    bool fIsReady = true;
     // TODO: using a ring buffer backing by wgpu::Buffer as staging buffer.
     std::vector<char>  fStagingBuffer;
 };

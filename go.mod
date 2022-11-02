@@ -8,6 +8,7 @@ require (
 	github.com/bazelbuild/remote-apis-sdks v0.0.0-20201120151053-8f976b9bf4fc // indirect
 	github.com/flynn/json5 v0.0.0-20160717195620-7620272ed633
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/google/instrumentsToPprof v0.0.0-20210408082435-153cdd92911f // indirect
 	github.com/google/uuid v1.1.2
 	github.com/klauspost/compress v1.11.3 // indirect
 	github.com/stretchr/testify v1.7.0

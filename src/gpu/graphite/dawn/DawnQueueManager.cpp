@@ -7,8 +7,6 @@
 
 #include "src/gpu/graphite/dawn/DawnQueueManager.h"
 
-#include <thread>
-
 #include "include/gpu/graphite/dawn/DawnBackendContext.h"
 #include "src/gpu/graphite/dawn/DawnCommandBuffer.h"
 #include "src/gpu/graphite/dawn/DawnResourceProvider.h"
@@ -47,7 +45,6 @@ public:
     void waitUntilFinished() override {
         while (!fFinished) {
             fDevice.Tick();
-            std::this_thread::yield();
         }
     }
 
@@ -67,6 +64,7 @@ QueueManager::OutstandingSubmission DawnQueueManager::onSubmitToGpu() {
     }
 
     fQueue.Submit(1, &wgpuCmdBuffer);
+    dawnCmdBuffer->onSubmitted();
 
     std::unique_ptr<DawnWorkSubmission> submission(new DawnWorkSubmission(
             std::move(fCurrentCommandBuffer), this, dawnSharedContext()->device()));
