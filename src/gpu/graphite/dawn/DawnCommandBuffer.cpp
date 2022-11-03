@@ -96,7 +96,7 @@ bool DawnCommandBuffer::onAddRenderPass(const RenderPassDesc& renderPassDesc,
                                         const Texture* depthStencilTexture,
                                         const std::vector<std::unique_ptr<DrawPass>>& drawPasses) {
     // Update viewport's constant buffer before starting a render pass.
-    int numViewports = 0;
+    [[maybe_unused]] int numViewports = 0;
     for (auto& drawPass : drawPasses) {
         for (auto [type, cmdPtr] : drawPass->commands()) {
             if (type == DrawPassCommands::Type::kSetViewport) {

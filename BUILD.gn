@@ -2835,6 +2835,12 @@ if (skia_enable_tools) {
           defines = [ "VK_USE_PLATFORM_XCB_KHR" ]
           libs += [ "X11-xcb" ]
         }
+        if (dawn_enable_vulkan && skia_enable_graphite) {
+          sources +=
+              [ "tools/sk_app/unix/GraphiteDawnVulkanWindowContext_unix.cpp" ]
+          sources += [ "tools/sk_app/GraphiteDawnWindowContext.cpp" ]
+          sources += [ "tools/sk_app/GraphiteDawnWindowContext.h" ]
+        }
       } else if (is_win) {
         if (dawn_enable_d3d12) {
           sources += [ "tools/sk_app/win/DawnD3D12WindowContext_win.cpp" ]
