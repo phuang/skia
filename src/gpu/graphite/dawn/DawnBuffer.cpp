@@ -22,7 +22,7 @@ static const char* kBufferTypeNames[kBufferTypeCount] = {
 };
 #endif
 
-#define ALWAYS_MAPPED_HACK 1
+#define ALWAYS_MAPPED_HACK 0
 
 sk_sp<Buffer> DawnBuffer::Make(const DawnSharedContext* sharedContext,
                                size_t size,

@@ -18,7 +18,7 @@
 
 #include "webgpu/webgpu_cpp.h"
 
-#define ALWAYS_MAPPED_CONSTANT_BUFFER 1
+#define ALWAYS_MAPPED_CONSTANT_BUFFER 0
 
 namespace skgpu::graphite {
 class DawnBuffer;

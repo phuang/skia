@@ -463,7 +463,7 @@ void DawnCommandBuffer::syncUniformBuffers() {
             entries[i].binding = DawnGraphicsPipeline::kRenderStepUniformBufferIndex;
             entries[i].buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
             entries[i].offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kRenderStepUniformBufferIndex];
-            entries[i].size = wgpu::kWholeSize;
+            entries[i].size = std::min(fBoundUniformBufferRanges[DawnGraphicsPipeline::kRenderStepUniformBufferIndex], 65536ul);
             ++i;
         }
 
@@ -472,7 +472,7 @@ void DawnCommandBuffer::syncUniformBuffers() {
             entries[i].binding = DawnGraphicsPipeline::kPaintUniformBufferIndex;
             entries[i].buffer = fBoundUniformBuffers[DawnGraphicsPipeline::kPaintUniformBufferIndex];
             entries[i].offset = fBoundUniformBufferOffsets[DawnGraphicsPipeline::kPaintUniformBufferIndex];
-            entries[i].size =  wgpu::kWholeSize;
+            entries[i].size = std::min(fBoundUniformBufferRanges[DawnGraphicsPipeline::kPaintUniformBufferIndex], 65536ul);
             ++i;
         }
 
