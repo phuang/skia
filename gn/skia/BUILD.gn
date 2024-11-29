@@ -97,6 +97,19 @@ config("default") {
     asmflags += [ target_triple ]
   }
 
+  if (is_ohos) {
+    ohos_sysroot = "/home/penghuang/sources/command-line-tools/sdk/default/openharmony/native/sysroot/"
+    ldflags += [
+      "-v",
+      "--sysroot=${ohos_sysroot}",
+    ]
+    cflags += [ "--sysroot=${ohos_sysroot}" ]
+    target_triple = "--target=aarch64-unknown-linux-ohos"
+    ldflags += [ target_triple ]
+    cflags += [ target_triple ]
+    asmflags += [ target_triple ]
+  }
+
   if (is_win) {
     if (is_clang && current_cpu == "arm64") {
       cflags += [ "--target=arm64-windows" ]

@@ -82,6 +82,8 @@ if (skia_use_system_zlib) {
       defines = [ "CRC32_ARMV8_CRC32" ]
       if (is_android) {
         defines += [ "ARMV8_OS_ANDROID" ]
+      } else if (is_ohos) {
+        defines += [ "ARMV8_OS_OHOS" ]
       } else if (is_linux || is_chromeos) {
         defines += [ "ARMV8_OS_LINUX" ]
       } else if (is_mac) {
