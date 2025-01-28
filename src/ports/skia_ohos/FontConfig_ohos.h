@@ -50,6 +50,7 @@ using FallbackForMap = skia_private::THashMap<SkString, FallbackSetPos>;
 using NamesMap = skia_private::THashMap<SkString, int>;
 using Coordinate = SkFontArguments::VariationPosition::Coordinate;
 using AxisDefinitions = SkFontScanner::AxisDefinitions;
+using VariationPosition = SkFontArguments::VariationPosition;
 
 /*!
  * Error code definition
@@ -222,9 +223,12 @@ private:
     int parseTtcIndex(const Json::Value& root, const SkString& familyName);
     void getAxisValues(const AxisDefinitions& axisDefinitions,
                        const VariationInfo& variation,
+                       const VariationPosition& currentPosition,
                        FontInfo& font) const;
     bool insertTtcFont(int count, FontInfo& font);
-    bool insertVariableFont(const AxisDefinitions& axisDefinitions, FontInfo& font);
+    bool insertVariableFont(const AxisDefinitions& axisDefinitions,
+                            const VariationPosition& currentPosition,
+                            FontInfo& font);
     TypefaceSet* getTypefaceSet(const SkString& familyName, SkString& specifiedName) const;
 
     int loadFont(const SkFontScanner* scanner, const char* fname);

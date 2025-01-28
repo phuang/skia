@@ -11,9 +11,9 @@
  * \n                false - the font style is from generic family
  */
 SkFontStyleSet_OHOS::SkFontStyleSet_OHOS(sk_sp<FontConfig_OHOS> fontConfig,
-    int index, bool isFallback)
-    : fontConfig_(std::move(fontConfig)), styleIndex(index), isFallback(isFallback)
-{
+                                         int index,
+                                         bool isFallback)
+        : fontConfig_(std::move(fontConfig)), styleIndex(index), isFallback(isFallback) {
     if (fontConfig) {
         tpCount = fontConfig_->getTypefaceCount(styleIndex, isFallback);
     }
@@ -22,18 +22,14 @@ SkFontStyleSet_OHOS::SkFontStyleSet_OHOS(sk_sp<FontConfig_OHOS> fontConfig,
 /*! To get the count of typeface
  * \return The count of typeface in this font style set
  */
-int SkFontStyleSet_OHOS::count()
-{
-    return tpCount;
-}
+int SkFontStyleSet_OHOS::count() { return tpCount; }
 
 /*! To get the font style for the specified typeface
  * \param the index of a typeface
  * \param[out] style the style value returned to the caller
  * \param[out] the style name returned to the caller
  */
-void SkFontStyleSet_OHOS::getStyle(int index, SkFontStyle* style, SkString* styleName)
-{
+void SkFontStyleSet_OHOS::getStyle(int index, SkFontStyle* style, SkString* styleName) {
     if (index < 0 || index >= this->count() || fontConfig_ == nullptr) {
         return;
     }
@@ -47,19 +43,17 @@ void SkFontStyleSet_OHOS::getStyle(int index, SkFontStyle* style, SkString* styl
         *style = typeface->fontStyle();
     }
     if (styleName) {
-        const char* names[] = {
-            "invisible",
-            "thin",
-            "extralight",
-            "light",
-            "normal",
-            "medium",
-            "semibold",
-            "bold",
-            "extrabold",
-            "black",
-            "extrablack"
-        };
+        const char* names[] = {"invisible",
+                               "thin",
+                               "extralight",
+                               "light",
+                               "normal",
+                               "medium",
+                               "semibold",
+                               "bold",
+                               "extrabold",
+                               "black",
+                               "extrablack"};
         // the value of font weight is between 0 ~ 1000 (refer to SkFontStyle::Weight)
         // the weight is divided by 100 to get the matched name
         unsigned int i = typeface->fontStyle().weight() / 100;
@@ -77,8 +71,7 @@ void SkFontStyleSet_OHOS::getStyle(int index, SkFontStyle* style, SkString* styl
  * \n      Return null, if the 'index' is out of range
  * \note The caller must call unref() on the returned object if it's not null
  */
-sk_sp<SkTypeface> SkFontStyleSet_OHOS::createTypeface(int index)
-{
+sk_sp<SkTypeface> SkFontStyleSet_OHOS::createTypeface(int index) {
     if (index < 0 || index >= this->count()) {
         return nullptr;
     }
@@ -93,8 +86,7 @@ sk_sp<SkTypeface> SkFontStyleSet_OHOS::createTypeface(int index)
  * \return the object of a typeface which is the closest matching to 'pattern'
  * \note The caller must call unref() on the returned object
  */
-sk_sp<SkTypeface> SkFontStyleSet_OHOS::matchStyle(const SkFontStyle& pattern)
-{
+sk_sp<SkTypeface> SkFontStyleSet_OHOS::matchStyle(const SkFontStyle& pattern) {
     if (fontConfig_) {
         return fontConfig_->getTypeface(styleIndex, pattern, isFallback);
     }

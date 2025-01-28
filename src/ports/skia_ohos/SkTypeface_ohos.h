@@ -5,9 +5,9 @@
 #ifndef SKTYPEFACE_OHOS_H
 #define SKTYPEFACE_OHOS_H
 
-#include "src/ports/SkFontHost_FreeType_common.h"
 #include "include/core/SkFontStyle.h"
 #include "include/core/SkStream.h"
+#include "src/ports/SkFontHost_FreeType_common.h"
 
 #include "FontInfo_ohos.h"
 
@@ -20,15 +20,17 @@ public:
     explicit SkTypeface_OHOS(FontInfo& info);
     virtual ~SkTypeface_OHOS() override = default;
     const FontInfo* getFontInfo() const;
+
 protected:
     virtual std::unique_ptr<SkStreamAsset> onOpenStream(int* ttcIndex) const override;
     virtual std::unique_ptr<SkFontData> onMakeFontData() const override;
     virtual void onGetFontDescriptor(SkFontDescriptor* descriptor, bool* isLocal) const override;
     virtual void onGetFamilyName(SkString* familyName) const override;
     virtual sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
+
 private:
-    SkString specifiedName; // specified family name which is defined in the configuration file
-    std::unique_ptr<FontInfo> fontInfo; // the font information of this typeface
+    SkString specifiedName;  // specified family name which is defined in the configuration file
+    std::unique_ptr<FontInfo> fontInfo;  // the font information of this typeface
 };
 
 #endif /* SKTYPEFACE_OHOS_H */

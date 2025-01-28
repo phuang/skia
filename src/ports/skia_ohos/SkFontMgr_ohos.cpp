@@ -468,30 +468,35 @@ sk_sp<SkTypeface> SkFontMgr_OHOS::makeTypeface(std::unique_ptr<SkStreamAsset> st
                                       &fontInfo.familyName,
                                       &fontInfo.style,
                                       &fontInfo.isFixedWidth,
+                                      nullptr,
                                       nullptr)) {
             LOGE("%s\n", FontConfig_OHOS::errToString(ERROR_FONT_INVALID_STREAM));
             return nullptr;
         }
     } else {
         AxisDefinitions axisDef;
+        SkFontScanner::VariationPosition currentPosition;
         if (!fontScanner.scanInstance(stream.get(),
                                       ttcIndex,
                                       0,
                                       &fontInfo.familyName,
                                       &fontInfo.style,
                                       &fontInfo.isFixedWidth,
-                                      &axisDef)) {
+                                      &axisDef,
+                                      &currentPosition)) {
             LOGE("%s\n", FontConfig_OHOS::errToString(ERROR_FONT_INVALID_STREAM));
             return nullptr;
         }
         if (axisDef.size() > 0) {
             std::vector<SkFixed> axis(axisDef.size());
-            fontScanner.computeAxisValues(axisDef,
-                                          args.getVariationDesignPosition(),
-                                          axis.data(),
-                                          fontInfo.familyName,
-                                          nullptr);
-            fontInfo.setAxisSet(axisCount, axis.data(), axisDef.data());
+            fontScanner.computeAxisValues(
+                    axisDef,
+                    VariationPosition{currentPosition.data(), currentPosition.size()},
+                    args.getVariationDesignPosition(),
+                    axis.data(),
+                    fontInfo.familyName,
+                    nullptr);
+            fontInfo.setAxisSet(axisCount, axis.data(), axisDef);
             fontInfo.style = fontInfo.computeFontStyle();
         }
     }

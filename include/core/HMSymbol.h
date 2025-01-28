@@ -15,9 +15,9 @@
 #ifndef LIB_RS_SRC_HM_SYMBOL_H_
 #define LIB_RS_SRC_HM_SYMBOL_H_
 #include <iostream>
-#include <vector>
-#include <string>
 #include <map>
+#include <string>
+#include <vector>
 
 #include "third_party/skia/include/core/SkPath.h"
 
@@ -55,7 +55,7 @@ using PiecewiseParameter = struct PiecewiseParameter {
 };
 
 using AnimationPara = struct AnimationPara {
-    uint16_t animationMode = 0; // 0 is default value, is byLayer effect
+    uint16_t animationMode = 0;  // 0 is default value, is byLayer effect
     CommonSubType commonSubType = CommonSubType::DOWN;
     std::vector<std::vector<PiecewiseParameter>> groupParameters;
 };
@@ -79,7 +79,7 @@ using GroupInfo = struct GroupInfo {
 
 using GroupSetting = struct GroupSetting {
     std::vector<GroupInfo> groupInfos;
-    int animationIndex = -1; // -1 is default value, the level has no effecet
+    int animationIndex = -1;  // -1 is default value, the level has no effecet
 };
 
 using AnimationSetting = struct AnimationSetting {
@@ -116,7 +116,6 @@ enum SymbolRenderingStrategy {
     MULTIPLE_OPACITY = 2,
 };
 
-
 using SymbolLayersGroups = struct SymbolLayersGroups {
     uint16_t symbolGlyphId = 0;
     std::vector<std::vector<size_t>> layers;
@@ -124,16 +123,14 @@ using SymbolLayersGroups = struct SymbolLayersGroups {
     std::vector<AnimationSetting> animationSettings;
 };
 
-class SK_API HMSymbolData
-{
+class SK_API HMSymbolData {
 public:
     SymbolLayers symbolInfo_;
     SkPath path_;
     uint64_t symbolId_ = 0;
 };
 
-class SK_API HMSymbol
-{
+class SK_API HMSymbol {
 public:
     HMSymbol(){};
 
@@ -142,7 +139,8 @@ public:
     static void PathOutlineDecompose(const SkPath& path, std::vector<SkPath>& paths);
 
     static void MultilayerPath(const std::vector<std::vector<size_t>>& multMap,
-        const std::vector<SkPath>& paths, std::vector<SkPath>& multPaths);
+                               const std::vector<SkPath>& paths,
+                               std::vector<SkPath>& multPaths);
 };
 
 #endif

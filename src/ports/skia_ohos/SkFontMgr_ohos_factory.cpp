@@ -9,8 +9,5 @@ SK_API sk_sp<SkFontMgr> SkFontMgr_New_OHOS(const char* path);
 /*! To implement the porting layer to return the default factory for Harmony platform
  * \return the default font manager for Harmony platform
  */
-sk_sp<SkFontMgr> SkFontMgr::Factory()
-{
-    return SkFontMgr_New_OHOS(nullptr);
-}
+sk_sp<SkFontMgr> SkFontMgr::Factory() { return SkFontMgr_New_OHOS(nullptr); }
 #endif /* SK_BUILD_FONT_MGR_FOR_OHOS */

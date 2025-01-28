@@ -4,9 +4,9 @@
 
 #include "SkTypeface_ohos.h"
 
+#include "include/private/base/SkTArray.h"
 #include "src/core/SkFontDescriptor.h"
 #include "src/ports/SkFontHost_FreeType_common.h"
-#include "include/private/base/SkTArray.h"
 #include "src/ports/SkFontScanner_FreeType_priv.h"
 
 /*! Constructor
@@ -14,9 +14,7 @@
  * \param info the font information for the typeface
  */
 SkTypeface_OHOS::SkTypeface_OHOS(const SkString& familyName, FontInfo& info)
-    : SkTypeface_FreeType(info.style, info.isFixedWidth),
-      specifiedName(familyName)
-{
+        : SkTypeface_FreeType(info.style, info.isFixedWidth), specifiedName(familyName) {
     fontInfo = std::make_unique<FontInfo>(std::move(info));
 }
 
@@ -24,8 +22,7 @@ SkTypeface_OHOS::SkTypeface_OHOS(const SkString& familyName, FontInfo& info)
  * \param info the font information for the typeface
  */
 SkTypeface_OHOS::SkTypeface_OHOS(FontInfo& info)
-    : SkTypeface_FreeType(info.style, info.isFixedWidth)
-{
+        : SkTypeface_FreeType(info.style, info.isFixedWidth) {
     specifiedName.reset();
     fontInfo = std::make_unique<FontInfo>(std::move(info));
 }
@@ -34,8 +31,7 @@ SkTypeface_OHOS::SkTypeface_OHOS(FontInfo& info)
  * \param[out] ttcIndex the index of the typeface in a ttc file returned to the caller
  * \return The stream object of the typeface
  */
-std::unique_ptr<SkStreamAsset> SkTypeface_OHOS::onOpenStream(int* ttcIndex) const
-{
+std::unique_ptr<SkStreamAsset> SkTypeface_OHOS::onOpenStream(int* ttcIndex) const {
     if (fontInfo) {
         if (ttcIndex) {
             *ttcIndex = fontInfo->index;
@@ -53,8 +49,7 @@ std::unique_ptr<SkStreamAsset> SkTypeface_OHOS::onOpenStream(int* ttcIndex) cons
 /*! To make font data from the typeface
  * \return The object of SkFontData
  */
-std::unique_ptr<SkFontData> SkTypeface_OHOS::onMakeFontData() const
-{
+std::unique_ptr<SkFontData> SkTypeface_OHOS::onMakeFontData() const {
     if (fontInfo == nullptr) {
         return nullptr;
     }
@@ -65,16 +60,20 @@ std::unique_ptr<SkFontData> SkTypeface_OHOS::onMakeFontData() const
     if (fontInfo->stream.get() == nullptr) {
         return nullptr;
     }
-    return std::make_unique<SkFontData>(fontInfo->stream->duplicate(), fontInfo->index, 0,
-               fontInfo->axisSet.axis.data(), fontInfo->axisSet.axis.size(), nullptr, 0);
+    return std::make_unique<SkFontData>(fontInfo->stream->duplicate(),
+                                        fontInfo->index,
+                                        0,
+                                        fontInfo->axisSet.axis.data(),
+                                        fontInfo->axisSet.axis.size(),
+                                        nullptr,
+                                        0);
 }
 
 /*! To get the font descriptor of the typeface
  * \param[out] descriptor the font descriptor returned to the caller
  * \param[out] isLocal the false to the caller
  */
-void SkTypeface_OHOS::onGetFontDescriptor(SkFontDescriptor* descriptor, bool* isLocal) const
-{
+void SkTypeface_OHOS::onGetFontDescriptor(SkFontDescriptor* descriptor, bool* isLocal) const {
     if (isLocal) {
         *isLocal = false;
     }
@@ -85,7 +84,7 @@ void SkTypeface_OHOS::onGetFontDescriptor(SkFontDescriptor* descriptor, bool* is
         descriptor->setStyle(this->fontStyle());
         auto* variation = descriptor->setVariationCoordinates(fontInfo->axisSet.axis.size());
         for (int i = 0; i < fontInfo->axisSet.axis.size(); i++) {
-            variation[i].axis = fontInfo->axisSet.range[i].fTag;
+            variation[i].axis = fontInfo->axisSet.range[i].tag;
             // The axis actual value need to dealt by SkFixedToFloat because the real-time value was
             // changed in SkTypeface_FreeType::Scanner::computeAxisValues
             variation[i].value = SkFixedToFloat(fontInfo->axisSet.axis[i]);
@@ -96,8 +95,7 @@ void SkTypeface_OHOS::onGetFontDescriptor(SkFontDescriptor* descriptor, bool* is
 /*! To get the family name of the typeface
  * \param[out] familyName the family name returned to the caller
  */
-void SkTypeface_OHOS::onGetFamilyName(SkString* familyName) const
-{
+void SkTypeface_OHOS::onGetFamilyName(SkString* familyName) const {
     if (familyName == nullptr) {
         return;
     }
@@ -115,8 +113,7 @@ void SkTypeface_OHOS::onGetFamilyName(SkString* familyName) const
  * \return The object of a new typeface
  * \note The caller must call unref() on the returned object
  */
-sk_sp<SkTypeface> SkTypeface_OHOS::onMakeClone(const SkFontArguments& args) const
-{
+sk_sp<SkTypeface> SkTypeface_OHOS::onMakeClone(const SkFontArguments& args) const {
     int ttcIndex = args.getCollectionIndex();
     auto stream = openStream(&ttcIndex);
 
@@ -125,15 +122,27 @@ sk_sp<SkTypeface> SkTypeface_OHOS::onMakeClone(const SkFontArguments& args) cons
     if (axisCount > 0) {
         SkFontScanner_FreeType fontScanner;
         SkFontScanner::AxisDefinitions axisDefs;
-        if (!fontScanner.scanInstance(stream.get(), ttcIndex, 0, &info.familyName, &info.style,
-            &info.isFixedWidth, &axisDefs)) {
+        SkFontScanner::VariationPosition currentPosition;
+        if (!fontScanner.scanInstance(stream.get(),
+                                      ttcIndex,
+                                      0,
+                                      &info.familyName,
+                                      &info.style,
+                                      &info.isFixedWidth,
+                                      &axisDefs,
+                                      &currentPosition)) {
             return nullptr;
         }
         if (axisDefs.size() > 0) {
             std::vector<SkFixed> axis(axisDefs.size());
-            fontScanner.computeAxisValues(axisDefs, args.getVariationDesignPosition(),
-                axis.data(), info.familyName, nullptr);
-            info.setAxisSet(axisCount, axis.data(), axisDefs.data());
+            fontScanner.computeAxisValues(axisDefs,
+                                          SkFontArguments::VariationPosition{
+                                                  currentPosition.data(), currentPosition.size()},
+                                          args.getVariationDesignPosition(),
+                                          axis.data(),
+                                          info.familyName,
+                                          nullptr);
+            info.setAxisSet(axisCount, axis.data(), axisDefs);
             info.style = info.computeFontStyle();
             return sk_make_sp<SkTypeface_OHOS>(specifiedName, info);
         }
@@ -145,7 +154,4 @@ sk_sp<SkTypeface> SkTypeface_OHOS::onMakeClone(const SkFontArguments& args) cons
 /*! To get the font information of the typeface
  * \return The object of FontInfo
  */
-const FontInfo* SkTypeface_OHOS::getFontInfo() const
-{
-    return fontInfo.get();
-}
+const FontInfo* SkTypeface_OHOS::getFontInfo() const { return fontInfo.get(); }

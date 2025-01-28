@@ -15,18 +15,19 @@
  */
 class SK_API SkFontStyleSet_OHOS : public SkFontStyleSet {
 public:
-    SkFontStyleSet_OHOS(sk_sp<FontConfig_OHOS> fontConfig,
-        int index, bool isFallback = false);
+    SkFontStyleSet_OHOS(sk_sp<FontConfig_OHOS> fontConfig, int index, bool isFallback = false);
     virtual ~SkFontStyleSet_OHOS() override = default;
     virtual int count() override;
     virtual void getStyle(int index, SkFontStyle* style, SkString* styleName) override;
     virtual sk_sp<SkTypeface> createTypeface(int index) override;
     virtual sk_sp<SkTypeface> matchStyle(const SkFontStyle& pattern) override;
+
 private:
-    sk_sp<FontConfig_OHOS> fontConfig_; // the object of FontConfig_OHOS
-    int styleIndex = 0; // the index of the font style set
-    bool isFallback = false; // the flag of font style set. False for fallback family, true for generic family.
-    int tpCount = -1; // the typeface count in the font style set
+    sk_sp<FontConfig_OHOS> fontConfig_;  // the object of FontConfig_OHOS
+    int styleIndex = 0;                  // the index of the font style set
+    bool isFallback = false;  // the flag of font style set. False for fallback family, true for
+                              // generic family.
+    int tpCount = -1;         // the typeface count in the font style set
 };
 
 #endif /* SKFONTSTYLESET_OHOS_H */
